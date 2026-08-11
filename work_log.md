@@ -87,3 +87,15 @@
 - **改动文件**：`README.md`（M4 清单新增「代码已推送」项；验收清单勾选「代码已提交并推送」）
 - **做了什么**：质量门禁自检——扫描项目无硬编码 API Key（仅 `.env.example`/README 占位符），`.env`/`server.log*`/`.venv` 均被忽略不入库；设置仓库级 git 身份（lupx-cn / noreply 邮箱）；首次 commit `042a5f1`（20 文件、1682 行）；执行 `git push -u origin master:main` 成功。
 - **验证结果**：push 输出 `* [new branch] master -> main`，本地 master 建立对 origin/main 的跟踪；远程仓库为 Public（用户确认）。
+
+## 2026-08-11 19:16（约）· 需求细化：代码版本管理 + 会话找回（M4 测试反馈）
+- **新增文件**：`requirements_enhance.md`
+- **做了什么**：细化用户 M4 测试反馈的两点需求。① 代码无版本位置：确认数据层 `messages` 已天然保留每轮完整代码（每条 done 的 assistant 消息即一版），缺的是版本结构（`versions` 数组）与版本 UI（标签栏 / 切换回看 / 基于历史版本继续迭代 / 旧数据迁移）；② 新建会话后旧对话找不见：定位根因——`static/index.html` 中 `#session-list-wrap` 初始 `hidden`（默认折叠），且「展开/收起」按钮位于可折叠容器内部，收起后按钮随容器消失、页面无任何入口可恢复（真 Bug，数据未丢失）。文档包含用户故事、功能需求 FR1.x/FR2.x、数据模型变更、验收标准 AC1.x/AC2.x、优先级（P0 会话找回 / P1 版本管理 / P2 可选增强：说明文本、搜索、重命名/删除）、边界取舍。
+- **验证结果**：读取 index.html/app.js/storage.js 确认问题根因；会话数据实际保存在 LocalStorage，未丢失。
+
+## 2026-08-11 19:45（约）· 实现 requirements_enhance.md：代码版本管理 + 会话找回
+- **新增文件**：`static/js/components/versionBar.js`
+- **改动文件**：`static/index.html`、`static/css/style.css`、`static/js/storage.js`、`static/js/app.js`
+- **做了什么**：按需求细化文档实现 P0/P1 与部分 P2。① 版本管理（FR1.1~1.6）：`session.versions` 数组（每次生成 done 时追加 `{index,label,prompt,code,createdAt}`）；预览区上方版本标签栏（新组件 `versionBar.js` 渲染 V1/V2…，当前版本高亮，tooltip 显示需求摘要与时间）；点击标签回看——预览 iframe 与代码面板同步切换；`getBaseCode()` 以当前查看版本作为下一轮迭代基准注入 `history_code`；旧会话无 versions 时从 messages 中 status=done 的 assistant 消息自动迁移重建版本。② 会话找回（FR2.1~2.4）：修复「收起后无入口」Bug——折叠按钮移出可折叠容器、标题栏常驻，仅折叠列表体；默认展开且偏好记忆（`loadPref/savePref`）；新增当前会话标题栏；会话搜索过滤（按标题关键字 + 计数显示）。③ 会话管理（FR2.5）：双击会话标题重命名、hover ✕ 删除（带确认），删除当前会话后自动切换。
+- **验证结果**（应用内浏览器真实流程）：旧数据迁移 PASS（历史会话自动重建 V1）；基于 V1 迭代生成 V2 PASS（后端日志 history_len=41991 确认注入 V1 代码，V2 输出 45KB 完成）；版本切换回看 PASS（点击 V1 预览恢复 41996 字符）；刷新恢复 PASS（V1/V2 标签、当前版本、预览、会话、消息全部恢复）；新建会话找回 PASS（新会话后旧会话仍在列表，点开完整恢复）；折叠/展开入口常驻 PASS；搜索过滤 UI 与逻辑已实现（验证时浏览器标签页被回收，未完成 UI 级断言）。全部 8 个 JS 文件语法校验通过。
+- **说明**：① 验证过程中后端服务在生成请求中断开（服务进程退出），浏览器报「无法连接生成服务」，属服务中断非代码缺陷，已用 `.venv\Scripts\python.exe main.py` 重启（PID 32192）后恢复；② FR1.7（AI 生成说明文本）暂缓，需调整后端 prompt、可能影响现有稳定输出解析；③ FR2.6 排序与时间展示沿用已有实现（updatedAt 倒序 + 时间）。

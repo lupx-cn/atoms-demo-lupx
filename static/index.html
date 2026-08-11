@@ -26,14 +26,26 @@
   <main class="flex h-[calc(100vh-3.5rem)]">
     <!-- 左侧：会话面板 -->
     <aside class="w-[400px] min-w-[320px] max-w-[460px] flex flex-col border-r border-slate-800 bg-slate-900">
-      <!-- 会话列表（可折叠） -->
-      <section id="session-list-wrap" class="hidden border-b border-slate-800 bg-slate-900/90">
+      <!-- 会话列表（标题栏常驻，列表体可折叠） -->
+      <section class="border-b border-slate-800 bg-slate-900/90">
         <div class="px-3 py-2 text-xs text-slate-500 flex items-center justify-between">
-          <span>会话列表</span>
-          <button id="btn-collapse-sessions" type="button" class="text-slate-400 hover:text-slate-200">收起</button>
+          <span class="font-medium text-slate-400">会话列表 <span id="session-count"></span></span>
+          <button id="btn-collapse-sessions" type="button" class="text-slate-400 hover:text-slate-200">收起 ▴</button>
         </div>
-        <ul id="session-list" class="max-h-40 overflow-y-auto px-2 pb-2 space-y-1"></ul>
+        <div id="session-list-body">
+          <div class="px-2 pb-1">
+            <input id="session-search" type="text" placeholder="搜索会话…"
+              class="w-full bg-slate-800/70 border border-slate-700 rounded-md px-2 py-1 text-xs placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/60" />
+          </div>
+          <ul id="session-list" class="max-h-40 overflow-y-auto px-2 pb-2 space-y-1"></ul>
+        </div>
       </section>
+
+      <!-- 当前会话标题 -->
+      <div id="current-session-bar" class="px-4 py-2 border-b border-slate-800 text-sm text-slate-300 flex items-center gap-2 bg-slate-900/70">
+        <span aria-hidden="true">💬</span>
+        <span id="current-session-title" class="truncate"></span>
+      </div>
 
       <!-- 消息列表 -->
       <section id="message-list" class="flex-1 overflow-y-auto px-4 py-4 space-y-4"></section>
@@ -54,6 +66,7 @@
 
     <!-- 右侧：预览 + 代码 -->
     <section class="flex-1 flex flex-col bg-slate-950 min-w-0">
+      <div id="version-bar" class="hidden items-center gap-1.5 px-3 py-1.5 border-b border-slate-800 bg-slate-900/80 overflow-x-auto" title="代码版本：点击标签回看对应版本，并将作为下一轮迭代基准"></div>
       <div class="flex-1 relative min-h-0">
         <iframe id="preview-frame" title="网页实时预览" class="absolute inset-0 w-full h-full bg-white"
           sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>

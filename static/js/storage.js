@@ -43,3 +43,25 @@ export function loadActiveSessionId() {
 export function saveActiveSessionId(id) {
   return writeJson(KEYS.active, id);
 }
+/** 读取 UI 偏好（折叠状态等），容错返回 fallback */
+export function loadPref(key, fallback) {
+  try {
+    const raw = localStorage.getItem(PREFIX + 'ui_' + key);
+    return raw === null ? fallback : JSON.parse(raw);
+  } catch (err) {
+    console.warn('[storage] 偏好读取失败', key, err);
+    return fallback;
+  }
+}
+
+/** 保存 UI 偏好 */
+export function savePref(key, value) {
+  try {
+    localStorage.setItem(PREFIX + 'ui_' + key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    console.error('[storage] 偏好写入失败', key, err);
+    return false;
+  }
+}
+
