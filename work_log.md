@@ -72,3 +72,18 @@
 - **做了什么**：进入 M3 并完成验收。核对代码：多轮迭代（app.js 以 `session.lastCode` 作为 `history_code` 注入下一轮）、状态机反馈 UI（statusCard.js 四阶段卡片）、错误处理与重试提示（api.js 网络/HTTP 错误友好提示；后端 401/429/超时/网络重试）在 M1/M2 已实现，本轮用真实 `DEEPSEEK_API_KEY` 端到端回归测试用例 1~4。
 - **验证结果**：4 个用例全部 PASS——用例1 待办清单（关键词 5/5）、用例2 深色模式+删除已完成事项（基于上一版增量修改）、用例3 全新计算器（新会话生成）、用例4 计算器圆角+点击动画（二次增量修改）；SSE 状态序列 `analyzing → planning → generating → rendering → done` 均正常、HTTP 200；空 prompt / 超长 history_code 返回 422 校验正常。
 - **说明**：首轮验收脚本因 PowerShell 管道中文编码问题，case1 误生成「神秘问号页」而非待办清单（仅影响验收脚本、不影响项目代码），已通过 `PYTHONUTF8=1` 修正并重跑通过；单轮真实生成耗时 90~190s（deepseek-v4-pro 输出 22K~40K 字符 HTML），非服务卡死，属模型输出规模正常现象。验收脚本位于系统临时目录（未入库），生成结果已保存供复核。
+
+## 2026-08-11 18:26（约）· M4 部署准备：Render 部署文件 + README 完整化
+- **新增文件**：`render.yaml`
+- **改动文件**：`.gitignore`、`.env.example`、`README.md`（重写为完整版）
+- **做了什么**：新增 Render Blueprint 部署蓝图（构建 `pip install -r requirements.txt`、启动 `uvicorn main:app --host 0.0.0.0 --port $PORT`、healthCheck `/api/health`、环境变量 `DEEPSEEK_API_KEY`（sync:false，需手动填）、`DEEPSEEK_BASE_URL`、`DEEPSEEK_MODEL=deepseek-v4-pro`、`LOG_LEVEL`）；`.gitignore` 补充 `server.log`/`server.log.err`/`*.log`；`.env.example` 模型名改为 `deepseek-v4-pro`；README 补齐项目简介、功能特性、技术栈、本地启动、环境变量说明、Render 部署步骤、测试用例表、项目结构、M1~M3 里程碑勾选与 M4 清单、验收清单。
+
+## 2026-08-11 18:26（约）· M4 持久化验证（测试用例 5 PASS）
+- **改动文件**：无（仅验证）
+- **做了什么**：通过应用内浏览器真实流程验证持久化——输入需求生成待办页面（约 3.5 分钟）→ 刷新页面 → 会话、消息、「生成完成」状态、预览区（srcdoc 41996 字符）全部恢复，截图 `persistence-check.png`。
+- **验证结果**：PASS，本地持久化（LocalStorage）刷新不丢数据。
+
+## 2026-08-11 18:26（约）· M4 质量自检 + 首次 commit + push
+- **改动文件**：`README.md`（M4 清单新增「代码已推送」项；验收清单勾选「代码已提交并推送」）
+- **做了什么**：质量门禁自检——扫描项目无硬编码 API Key（仅 `.env.example`/README 占位符），`.env`/`server.log*`/`.venv` 均被忽略不入库；设置仓库级 git 身份（lupx-cn / noreply 邮箱）；首次 commit `042a5f1`（20 文件、1682 行）；执行 `git push -u origin master:main` 成功。
+- **验证结果**：push 输出 `* [new branch] master -> main`，本地 master 建立对 origin/main 的跟踪；远程仓库为 Public（用户确认）。

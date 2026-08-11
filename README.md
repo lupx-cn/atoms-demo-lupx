@@ -148,7 +148,8 @@ atoms-demo/
 - [x] 撰写 README 完整内容（项目简介、启动方式、环境变量说明）
 - [x] 本地验证测试用例 5「持久化验证」（刷新页面数据不丢失）
 - [x] 质量门禁自检：无硬编码 Key、功能完整
-- [ ] 部署到 Render 并配置环境变量（API Key）
+- [x] 首次 commit 并推送代码至 GitHub（master → main，仓库 Public）
+- [ ] 部署到 Render 并配置环境变量（API Key）（代码已推送至 GitHub，待 Render 控制台创建服务并填入 Key）
 - [ ] 公网链接回归测试用例 1~5
 
 ---
@@ -160,6 +161,7 @@ atoms-demo/
 - [ ] 部署链接可正常访问，功能完整
 - [x] GitHub 仓库为 Public，README 包含项目简介、启动方式、环境变量说明
 - [x] 代码中无硬编码 API Key（已使用环境变量）
+- [x] 代码已提交并推送至 GitHub（首次 commit 042a5f1）
 - [ ] 整体开发耗时控制在 6~8 小时内
 
 > 技术细节见 dev_spec.md，项目目标见 goals.md，逐轮工作记录见 work_log.md。
