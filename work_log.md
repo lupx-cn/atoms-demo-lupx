@@ -99,3 +99,61 @@
 - **做了什么**：按需求细化文档实现 P0/P1 与部分 P2。① 版本管理（FR1.1~1.6）：`session.versions` 数组（每次生成 done 时追加 `{index,label,prompt,code,createdAt}`）；预览区上方版本标签栏（新组件 `versionBar.js` 渲染 V1/V2…，当前版本高亮，tooltip 显示需求摘要与时间）；点击标签回看——预览 iframe 与代码面板同步切换；`getBaseCode()` 以当前查看版本作为下一轮迭代基准注入 `history_code`；旧会话无 versions 时从 messages 中 status=done 的 assistant 消息自动迁移重建版本。② 会话找回（FR2.1~2.4）：修复「收起后无入口」Bug——折叠按钮移出可折叠容器、标题栏常驻，仅折叠列表体；默认展开且偏好记忆（`loadPref/savePref`）；新增当前会话标题栏；会话搜索过滤（按标题关键字 + 计数显示）。③ 会话管理（FR2.5）：双击会话标题重命名、hover ✕ 删除（带确认），删除当前会话后自动切换。
 - **验证结果**（应用内浏览器真实流程）：旧数据迁移 PASS（历史会话自动重建 V1）；基于 V1 迭代生成 V2 PASS（后端日志 history_len=41991 确认注入 V1 代码，V2 输出 45KB 完成）；版本切换回看 PASS（点击 V1 预览恢复 41996 字符）；刷新恢复 PASS（V1/V2 标签、当前版本、预览、会话、消息全部恢复）；新建会话找回 PASS（新会话后旧会话仍在列表，点开完整恢复）；折叠/展开入口常驻 PASS；搜索过滤 UI 与逻辑已实现（验证时浏览器标签页被回收，未完成 UI 级断言）。全部 8 个 JS 文件语法校验通过。
 - **说明**：① 验证过程中后端服务在生成请求中断开（服务进程退出），浏览器报「无法连接生成服务」，属服务中断非代码缺陷，已用 `.venv\Scripts\python.exe main.py` 重启（PID 32192）后恢复；② FR1.7（AI 生成说明文本）暂缓，需调整后端 prompt、可能影响现有稳定输出解析；③ FR2.6 排序与时间展示沿用已有实现（updatedAt 倒序 + 时间）。
+
+## 2026-08-11 19:49 · 理解项目现状（文档研读 + 代码走读）
+- **改动文件**：无（仅研读）
+- **做了什么**：按用户要求先理解项目再继续工作，通读四份核心文档与代码。① `goals.md`——项目终极目标：对标 atoms.dev 的最小可行 AI 智能体原型，自然语言 → AI 流式生成单文件 HTML，双栏实时预览；基础功能/硬性合规/创新亮点均已勾选完成，仅剩质量门禁（测试用例全过、部署链接可用、仓库 Public、无硬编码 Key、6~8h 内）。② `dev_spec.md`——技术规范：FastAPI + SSE、原生 HTML/Vanilla JS/Tailwind CDN、DeepSeek 流式接口、LocalStorage 持久化、状态机五阶段、目录结构与部署规范。③ `README.md`——里程碑 M1~M4：M1 骨架 / M2 核心生成链路 / M3 迭代与体验 / M4 部署交付均已完成（M4 仅剩「部署到 Render + 公网回归」未完成），另含 M4 增强（版本管理 + 会话找回，已实现）。④ `work_log.md`——逐轮工作日志（本文件）。代码走读：`main.py`（load_dotenv 前置修复后的入口 + 路由 + 静态挂载）、`services/ai_generator.py`（消息构造 → DeepSeek 流式 → SSE status/token/done/error，超时/重试/错误透传）、`static/js/app.js`（会话管理 + 流式生成 + 版本追加 + 迁移逻辑）。
+- **验证结果**：项目当前处于 M4 收尾阶段；git 最新提交 `bcdad89`（M4 增强）；工作区干净，无未提交改动。
+
+## 2026-08-11 19:57 · 需求分析：三栏布局 + 右侧多功能面板（需求文档）
+- **新增文件**：`requirements_layout_v2.md`
+- **做了什么**：用户提出需求变更/追加（两条消息合并）：① 第一条：固定双栏经典布局（左对话需求面板 + 右一体化工作区：预览 + 文件资源管理器），解决"源码文件查看路径不清晰、预览成品页面与需求页面重叠"两个痛点；② 追加消息细化：右栏改「预览 / 代码」Tab 切换（预览=可拖拽缩放的模拟浏览器窗口 + V1/V2 版本切换只渲染网页；代码=完整 HTML 源码编辑器替代底部弹出）、版本切换规则修正（只加载对应版本 HTML，对话说明只留聊天区）、新增【下载 HTML】导出（独立单文件、双击即开）、布局调整为三栏（左会话列表 / 中 AI 对话聊天 / 右统一多功能面板）。本轮按用户要求只做需求分析并整理成追加需求文档，**未改任何代码**。文档含：现状问题根因分析（问题 A~D）、目标三栏布局、四大需求 FR（右侧多功能面板 / 版本切换隔离 / 导出下载 / 对话区与预览区硬隔离 + 消息卡片化）、数据模型与影响面、优先级（P0 布局+Tab+隔离+导出+卡片化；P1 拖拽缩放+文件树；P2 编辑保存/summary/多文件）、验收标准 AC、边界取舍、待确认项 Q1~Q5（双栏 vs 三栏、代码只读、拖拽缩放交互、消息卡片呈现、下载命名）。
+- **验证结果**：文档 166 行写入成功（UTF-8 无 BOM）；此前曾尝试用 apply_patch 创建文件但被环境拒绝（Access is denied），改用 PowerShell 直接写文件完成。
+- **待用户确认**：Q1~Q5（见文档第 9 节），确认后再进入实现。
+
+## 2026-08-11 20:10（约）· 需求确认 + 实现「三栏布局 + 右侧多功能面板」v2
+- **新增文件**：`Requirement Layout - V2.md`（由 `requirements_layout_v2.md` 改名而来，含 Q1~Q5 确认结论）、`static/js/download.js`、`static/js/components/fileTree.js`
+- **删除文件**：`requirements_layout_v2.md`（内容并入新文件名，避免重复文档）
+- **改动文件**：`static/index.html`（三栏布局重构）、`static/css/style.css`（新增分栏拖拽条/Tab/浏览器窗口/文件树/消息卡片样式）、`static/js/app.js`（全面重写）、`static/js/components/messageItem.js`（消息卡片化）、`README.md`（功能特性 + 项目结构 + M4 增强 v2 里程碑）
+- **确认结论（Q1~Q5）**：① 三栏宽度可拖拽调节；② 代码编辑器需编辑/保存/下载；③ 预览窗口画布内拖拽位置 + 右手柄缩放；④ assistant 消息改版本卡片；⑤ 下载文件名 = 会话项目名-V{n}.html。
+- **做了什么**（按确认需求实现 v2）：① 三栏布局——左会话列表 / 中 AI 对话聊天（消息+状态卡+输入区）/ 右统一多功能面板，分隔条拖拽调宽并记忆偏好；② 右栏「网页预览 / 源代码」Tab 切换，替代原顶栏「查看代码」与底部弹出代码面板；③ 预览模式——模拟浏览器窗口（地址栏/刷新按钮），画布内拖拽移动 + 右手柄缩放，位置/缩放存 LocalStorage，刷新按钮可重渲染；④ 版本隔离——V1/V2 切换只更新右栏（预览 iframe + 代码编辑器），聊天区不受影响；⑤ 代码模式——textarea 可编辑、保存（更新当前版本代码并刷新预览+持久化）、下载，左侧文件树显示 index.html；⑥ 下载导出——Blob 生成 `会话项目名-V{n}.html`（非法字符清洗），预览/代码模式按钮共用；⑦ 消息卡片化——assistant 生成中显示「生成中+已输出 KB」轻量卡，完成后渲染版本卡片（版本号+时间+需求摘要+在预览中查看/复制代码/下载），聊天区不再铺大段 HTML 源码，预览区零对话说明文字；⑧ 生成流 token 不再写入聊天气泡（仅更新大小指示与右栏代码），解决「大片白底+杂乱文字」痛点。
+- **验证结果**：10 个 JS 文件全部通过 `node --check`（临时 .mjs 副本）语法校验；`app.js` 引用的 33 个元素 ID 与 `index.html` 全部匹配，旧元素（codePanel/btnToggleCode/sessionListWrap 等）无残留引用；HTTP 冒烟 13/13 全过（健康检查、首页、CSS、全部 JS 均 200），首页关键结构（三栏/双 Tab/浏览器窗口/文件树/编辑器/下载按钮/分隔条）齐全；服务沿用已在运行的 PID 32192（静态文件按请求读盘，无需重启）。无头浏览器（playwright/jsdom）在本环境不可用，未做 UI 级断言，建议用户打开页面人工确认交互。
+- **说明**：apply_patch 在本环境被系统拒绝执行（Access denied），全程改用 PowerShell 直接读写文件（UTF-8 无 BOM）；三栏宽度与浏览器窗口偏好存储于 LocalStorage（`colWidths`/`browserWindow`/`panelTab`），旧会话数据（messages/versions）未改动，向后兼容。
+
+## 2026-08-11 20:18（约）· 修复需求文档命名与 Markdown 格式
+- **新增文件**：`requirement_layout_v2.md`（修复后的正式需求文档）
+- **删除文件**：`Requirement Layout - V2.md`（命名有误 + 内容含 diff 残留前缀）
+- **改动文件**：`README.md`（文档引用 `Requirement Layout - V2.md` → `requirement_layout_v2.md`）
+- **做了什么**：① 文件重命名——按用户要求由 `Requirement Layout - V2.md` 改为 `requirement_layout_v2.md`（小写 + 下划线命名规范）；② 修复 Markdown 格式错误——排查确认文件 166 行中 160 行开头残留 `+` 前缀（根因：最初用 apply_patch 补丁格式生成内容、fallback 写入时未剥离 diff 行前缀），逐行剥离行首 `+`（仅处理前缀，正文行内的 `+` 如「预览 + 代码」不受影响），写入新文件；③ 同步更新 README.md 中对需求文档的引用。
+- **验证结果**：新文件 0 残留 `+` 前缀；Markdown 结构完整——标题层级（H1/H2/H3）正常、表格（第 1 节三栏布局表等）正常、列表与引用块正常、无异常行；README 引用已同步；work_log 旧记录保留原文件名（历史记录不回改）。
+
+## 2026-08-11 20:25（约）· 需求整理：v2.1 三项体验修复（待确认）
+- **改动文件**：`requirement_layout_v2.md`（追加第 10 节「需求变更 v2.1」）
+- **做了什么**：用户实测 v2 后反馈 3 个问题，本轮按要求整理需求并确认意图，**未改任何代码**。① 问题 P1：生成结果卡片只能看最终结果，无法查看生成过程对话/分析——根因：完成卡片仅含摘要，生成阶段（analyzing→planning→generating→rendering）未持久化；需求 FR-A1~A3：卡片可展开（需求全文/阶段时间轴/AI 说明），versions 新增 process 字段。② 问题 P2a/P2b/P2c：源代码框被文件树+三栏挤压成细线、版本选择应在 Tab 之前、点 V1/V2 后出现不明 AI 文字——根因：file-tree 固定 176px 且右栏无最小宽、version-bar 在预览面板内部、AI 文字可能来自版本标签 tooltip 或生成 HTML 内嵌说明；需求 FR-B1~B3（版本栏上移共用 + 版本联动 + 消除说明文字）+ FR-C1（文件树收窄/可折叠 + 右栏最小宽）。③ 问题 P3：预览待办清单页面细长且无法左右拖拽调宽——根因：预览窗口默认宽仅画布 86% 且只有右下角手柄；需求 FR-C2~C3（默认加宽 + 右侧边缘水平拖拽手柄 + 热区扩大）。
+- **待用户确认**：Q1（展开内容是否接受"需求全文+阶段时间轴+AI说明"，是否要后端额外输出说明）、Q2（AI 文字具体出现在预览页内/标签悬浮提示/其他）、Q3（预览窗口仅水平调宽还是四边四角缩放）。确认后实施。
+
+
+## 2026-08-11 20:47 · v2.1 实施完成 + 排查「index.html 测试信息消失」
+- **改动文件**：`static/js/app.js`、`static/js/components/messageItem.js`、`static/js/components/versionBar.js`、`services/ai_generator.py`（上一轮已加强 SYSTEM_PROMPT）、`static/index.html`、`static/css/style.css`（上一轮已完成布局/样式）
+- **做了什么**：完成 v2.1 三项体验修复的剩余实施。① 卡片可展开（FR-A1~A3）：`messageItem.js` 完成卡片新增「▸ 展开详情」按钮，展开区显示需求全文 / 生成过程阶段时间轴（analyzing→planning→generating→rendering，含各阶段时间点与阶段耗时）/ AI 说明；`app.js` 生成中 `onStatus` 记录各阶段时间戳写入 `version.process`，AI 说明剥离后存入 `version.note`。② 消除预览区 AI 说明文字（FR-B3）：新增 `sanitizeCode()`——保守剥离生成 HTML 内嵌的说明段（HTML 注释、以「这是为您/已为您/以下是…」等客套语开头的无嵌套块级段落、body 首尾裸文本），预览/代码/下载/复制统一经 `displayCode()` 净化，历史版本切换同样生效；`versionBar.js` tooltip 极简化（仅「V1 · 时间」，移除需求摘要避免误认）。③ 预览窗口显示与缩放（FR-C2/C3）：`app.js` 默认窗口尺寸改为画布约 94%×92%（下限 360×280），新增四边 `.browser-edge` 拖拽缩放手柄（上/下 ns-resize、左/右 ew-resize，与右下角手柄并存）。
+- **排查「index.html 测试信息消失」**：经无头 Chrome（CDP）实测确认——测试数据（会话/消息/V1/V2 版本）存储在浏览器 LocalStorage（`atoms_demo_sessions`/`atoms_demo_active`），**不在 index.html 文件内**，文件改动不会导致数据丢失；通过 `http://localhost:8000` 访问时注入测试数据后会话列表/消息卡片/版本栏/预览/代码全部正常恢复。若直接双击 `static/index.html` 以 `file://` 打开：① ES Module 被浏览器 CORS 拦截（`app.js` 不执行，页面只剩静态骨架）；② `file://` 与 `http://localhost:8000` 是不同存储域（LocalStorage 互相隔离），因此表现为「测试信息全没了」。正确访问方式 = 保持后端运行，浏览器打开 `http://localhost:8000/`。
+- **验证结果**：全部 10 个 JS 文件 `node --check` 通过；HTTP 冒烟 13/13 全 200；CDP 无头浏览器端到端验证——注入含 AI 说明的 V2 后刷新：预览 srcdoc 已剥离说明且保留页面真实内容（任务A/B）、卡片展开可见「需求/生成过程/AI 说明」三区（时间轴 需求分析 20:46:45·10.0s → 方案规划 ·20.0s → 代码生成 ·7.0s → 渲染预览）、四边手柄 4 个存在、版本栏前置共用可见、默认窗口 451px（画布 480px 的 94%）。服务沿用 PID 32192（静态文件按请求读盘，未重启）。
+
+## 2026-08-11 21:19 · 修复「预览页出现未知 AI 说明文字」
+- **改动文件**：`static/js/app.js`（`sanitizeCode()`）、`services/ai_generator.py`（`clean_generated_code()`）
+- **做了什么**：定位「预览里出现『页面特点说明 这个工具围绕任务管理设计…』」的根因——AI 输出在 `</html>` 闭合标签之后还追加了 437 字符 Markdown 说明（`### 页面特点说明`、`- **任务操作**…`）；浏览器 HTML5 解析会把 `</html>` 之后的非空白文本重新并入 body 渲染，原净化逻辑只处理 `<!DOCTYPE` 之前与 `<body>…</body>` 内部，漏掉了尾部。修复：① 文档提取后新增「⓪.5 截断」——截断到最后一个 `</html>`（无则最后一个 `</body>`），其后内容一律丢弃；② 新增「①.5 AI 页面说明区块」——按标题（页面特点说明/页面功能说明/功能介绍/页面介绍/页面说明等）剥离不含交互元素（button/input/form/a/onclick）的纯说明容器；③ 改进「③ body 裸文本」——跳过空行、支持说明区块的 Markdown 续行聚集剥离。前后端同步实现（前端 `sanitizeCode` / 后端 `clean_generated_code`），预览/代码/下载/复制统一走净化。
+- **验证结果**：`node --check static\js\app.js` 与后端 `py_compile` 均通过；前后端各 7 个用例全部通过（真实尾部说明、div/section 包裹、裸文本 Markdown、真实页面含按钮不被误删、客套语说明、功能特点说明），输出均以 `</html>` 结尾；用户真实场景（前导说明 + ```html 围栏 + HTML + 尾部 437 字符说明）复测通过。前端静态文件刷新即生效；后端 `ai_generator.py` 改动需重启 uvicorn 才对新生成内容生效（当前进程未重启）。
+## 2026-08-11 21:45 · v2.2 实施：生成过程内容可见（阶段文字流式）+ 布局微调
+- **改动文件**：`services/ai_generator.py`、`static/js/api.js`、`static/js/app.js`、`static/js/components/messageItem.js`、`static/index.html`、`static/css/style.css`、`requirement_layout_v2.md`（追加第 11 节需求文档）
+- **做了什么**（对应已确认需求 R1/R2/R3，详见 `requirement_layout_v2.md` 第 11 节）：
+  ① **R1 阶段内容可见**：后端 `SYSTEM_PROMPT` 改为三段输出格式（`<analysis>…</analysis>` 需求分析 → `<plan>…</plan>` 方案规划 → 纯 HTML）；新增 `_StageStreamParser` 流式标记解析器（支持标记跨 chunk 截断、未闭合标记按 html 兜底、无标记回退），模型输出中的分析/规划文字通过新 SSE 事件 `stage_text` 实时下发，HTML 部分仍走 `token` 事件，标记在解析时剥离、`done` 代码保持纯 HTML；`api.js` 新增 `stage_text` 事件分发 → `onStageText(stage, text)`；`app.js` 生成中卡片新增流式区（`updateLiveStream` 实时显示「需求分析/方案规划」文字，进入 generating 阶段切换回输出大小指示），`onDone` 把 `stageText`（analyzing/planning）写入版本；`messageItem.js` 完成卡片展开区新增「阶段内容」区块，按阶段展示两段文字；`style.css` 新增 `.msg-card-stream`/`.d-stage` 样式。代码生成/渲染预览两阶段按确认保留时间轴。
+  ② **R2 新会话按钮移左栏**：`＋ 新会话` 按钮从顶栏移到左栏（会话列表栏）顶部通栏（`session-list-body` 之外，折叠时仍可见），顶栏移除按钮，事件绑定 id 不变。
+  ③ **R3 代码展示框高度**：根因 = `#panel-code` 缺少 Tailwind `flex` 类（`flex-col` 只设 flex-direction），切到源代码 Tab 时面板退化为 block、textarea 塌缩到默认 2~3 行；补 `flex` 类后代码区占满右栏剩余高度（≈左栏高度略矮）。
+- **验证结果**：后端 `py_compile` 通过；`_StageStreamParser` + `stream_generate` 4 个用例全过（标记跨 chunk 剥离并实时下发 stage_text、无标记回退纯 HTML、分析标记未闭合兜底不丢内容、含 `<div id='plan'>` 的 HTML 不误判）；10 个 JS 文件 `node --check` 全过；messageItem DOM 桩测试通过（生成中卡片含隐藏流式区、完成卡片展开区含「阶段内容」及两段文字）；HTTP 冒烟 7/7 全 200、health 正常。
+- **说明**：后端 `ai_generator.py` 改动需重启 uvicorn 才对新生成内容生效（当前进程未重启）；前端静态文件刷新即生效。历史会话的 `version.stageText` 为空时展开区不显示「阶段内容」，不影响旧数据。
+## 2026-08-11 21:55 · 修复「预览模块渲染太大、页面变形」
+- **改动文件**：`static/js/app.js`、`static/index.html`、`static/css/style.css`
+- **问题现象**：右侧「网页预览」中生成的页面渲染过大、布局被拉伸变形。
+- **根因**：预览 iframe 直接铺满画布 94%×92%（v2.1 为「不截断」调大的默认窗口），页面在大视口下被整体拉伸，未做缩放适配。
+- **做了什么**：① 新增「等比缩放适配」——iframe 固定按基准宽度 `PREVIEW_BASE_WIDTH = 1024` 渲染（`index.html` 中包一层 `#browser-frame-wrap`，CSS 固定 iframe 基准尺寸 + `transform-origin: 0 0`），`applyBrowserWindow()` 按窗口内容区宽度计算 `scale = min(1, 可用宽/1024)`，用 `transform: scale()` 整体缩放，页面不再拉伸变形、也不被截断；拖拽缩放/四边手柄/右下角手柄调整窗口后自动重新适配。② 默认窗口从 94%×92% 调小为「宽度取画布 88% 且不超过基准宽+16px、高度取画布 88%」，并居中（左右 6%、上下 5%）。
+- **验证结果**：`node --check` app.js / preview.js 通过；HTTP 冒烟 3/3 全 200。前端静态文件刷新即生效。

@@ -1,5 +1,5 @@
 // api.js —— SSE 请求封装（fetch + ReadableStream 流式读取）
-// 帧协议（见 dev_spec 2.2）：data: {"event": "status|token|done|error", "data": <payload>}\n\n
+// 帧协议（见 dev_spec 2.2）：data: {"event": "status|token|stage_text|done|error", "data": <payload>}\n\n
 
 const API_BASE = ''; // 同源部署：页面由 FastAPI 托管，接口与页面同源
 const MAX_HISTORY_CODE = 200_000; // 与后端上限一致
@@ -7,7 +7,7 @@ const MAX_HISTORY_CODE = 200_000; // 与后端上限一致
 /**
  * 流式调用代码生成接口。
  * @param {object} payload { prompt, historyCode, sessionId }
- * @param {object} handlers { onStatus(phase, message), onToken(text), onDone(code), onError(message) }
+ * @param {object} handlers { onStatus(phase, message), onToken(text), onStageText(stage, text), onDone(code), onError(message) }
  * @param {object} [opts] { baseUrl, signal } 测试/高级用途可覆盖 baseUrl
  * @returns {Promise<void>} 流结束后 resolve；网络/HTTP 错误 reject(Error)
  */
@@ -101,6 +101,8 @@ function dispatchFrame(rawFrame, handlers) {
       if (handlers.onStatus) handlers.onStatus(data.phase, data.message);
     } else if (type === 'token') {
       if (handlers.onToken) handlers.onToken(String(data));
+    } else if (type === 'stage_text' && data && data.stage) {
+      if (handlers.onStageText) handlers.onStageText(data.stage, String(data.text || ''));
     } else if (type === 'done' && data && data.full_code) {
       if (handlers.onDone) handlers.onDone(data.full_code);
     } else if (type === 'error') {

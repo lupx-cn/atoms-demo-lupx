@@ -17,20 +17,20 @@
     </div>
     <div class="flex items-center gap-2">
       <span id="health-dot" class="w-2 h-2 rounded-full bg-slate-600" title="后端连接状态：检测中"></span>
-      <button id="btn-new-session" type="button" class="btn-secondary">＋ 新会话</button>
-      <button id="btn-toggle-code" type="button" class="btn-secondary">查看代码</button>
     </div>
   </header>
 
-  <!-- 双栏主体 -->
-  <main class="flex h-[calc(100vh-3.5rem)]">
-    <!-- 左侧：会话面板 -->
-    <aside class="w-[400px] min-w-[320px] max-w-[460px] flex flex-col border-r border-slate-800 bg-slate-900">
-      <!-- 会话列表（标题栏常驻，列表体可折叠） -->
+  <!-- 三栏主体：左会话列表 / 中 AI 对话 / 右统一多功能面板 -->
+  <main class="flex h-[calc(100vh-3.5rem)] min-w-0">
+    <!-- 左栏：会话列表（项目列表） -->
+    <aside id="col-left" class="w-[260px] min-w-[200px] max-w-[420px] flex flex-col border-r border-slate-800 bg-slate-900">
       <section class="border-b border-slate-800 bg-slate-900/90">
         <div class="px-3 py-2 text-xs text-slate-500 flex items-center justify-between">
           <span class="font-medium text-slate-400">会话列表 <span id="session-count"></span></span>
           <button id="btn-collapse-sessions" type="button" class="text-slate-400 hover:text-slate-200">收起 ▴</button>
+        </div>
+        <div class="px-2 pb-2 pt-0.5">
+          <button id="btn-new-session" type="button" class="btn-secondary w-full">＋ 新会话</button>
         </div>
         <div id="session-list-body">
           <div class="px-2 pb-1">
@@ -40,20 +40,17 @@
           <ul id="session-list" class="max-h-40 overflow-y-auto px-2 pb-2 space-y-1"></ul>
         </div>
       </section>
+    </aside>
+    <div class="col-resizer" data-col="left" title="拖拽调节宽度"></div>
 
-      <!-- 当前会话标题 -->
+    <!-- 中栏：AI 对话聊天窗口 -->
+    <section id="col-mid" class="w-[400px] min-w-[300px] max-w-[560px] flex flex-col border-r border-slate-800 bg-slate-900">
       <div id="current-session-bar" class="px-4 py-2 border-b border-slate-800 text-sm text-slate-300 flex items-center gap-2 bg-slate-900/70">
         <span aria-hidden="true">💬</span>
         <span id="current-session-title" class="truncate"></span>
       </div>
-
-      <!-- 消息列表 -->
       <section id="message-list" class="flex-1 overflow-y-auto px-4 py-4 space-y-4"></section>
-
-      <!-- Agent 状态卡片 -->
       <section id="status-cards" class="px-4 py-3 border-t border-slate-800"></section>
-
-      <!-- 输入区 -->
       <section class="p-3 border-t border-slate-800">
         <div class="flex items-end gap-2">
           <textarea id="prompt-input" rows="3" placeholder="描述你想生成的网页，例如：生成一个待办事项清单网页…"
@@ -62,26 +59,61 @@
         </div>
         <p class="mt-2 text-[11px] text-slate-600">Enter 发送 · Shift+Enter 换行</p>
       </section>
-    </aside>
+    </section>
+    <div class="col-resizer" data-col="mid" title="拖拽调节宽度"></div>
 
-    <!-- 右侧：预览 + 代码 -->
-    <section class="flex-1 flex flex-col bg-slate-950 min-w-0">
-      <div id="version-bar" class="hidden items-center gap-1.5 px-3 py-1.5 border-b border-slate-800 bg-slate-900/80 overflow-x-auto" title="代码版本：点击标签回看对应版本，并将作为下一轮迭代基准"></div>
-      <div class="flex-1 relative min-h-0">
-        <iframe id="preview-frame" title="网页实时预览" class="absolute inset-0 w-full h-full bg-white"
-          sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
-        <div id="preview-placeholder"
-          class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 pointer-events-none">
-          <div class="text-4xl mb-3" aria-hidden="true">🖥️</div>
-          <p class="text-sm">输入需求并点击「生成」，预览区将实时展示 AI 生成的网页</p>
+    <!-- 右栏：统一多功能面板（预览 / 代码） -->
+    <section id="col-right" class="flex-1 flex flex-col min-w-[480px] bg-slate-950">
+      <!-- 工具栏：Tab 切换 + 下载 -->
+      <div class="flex items-center justify-between px-3 py-1.5 border-b border-slate-800 bg-slate-900/80">
+        <div class="flex items-center gap-1" role="tablist" aria-label="右侧面板模式">
+          <button id="tab-preview" type="button" class="panel-tab panel-tab--active" data-panel="preview">🖥️ 网页预览</button>
+          <button id="tab-code" type="button" class="panel-tab" data-panel="code">📝 源代码</button>
+        </div>
+        <button id="btn-download" type="button" class="btn-secondary" title="下载当前版本完整 HTML">⬇ 下载 HTML</button>
+      </div>
+
+      <!-- 版本标签栏（预览/代码共用，先选版本再看内容） -->
+      <div id="version-bar" class="hidden items-center gap-1.5 px-3 py-1.5 border-b border-slate-800 bg-slate-900/80 overflow-x-auto" title="代码版本：点击标签切换当前查看版本"></div>
+
+      <!-- 预览模式 -->
+      <div id="panel-preview" class="flex-1 flex flex-col min-h-0">
+        <div id="preview-canvas" class="flex-1 relative min-h-0 bg-slate-950 overflow-hidden">
+          <!-- 模拟浏览器窗口（可拖拽位置 / 四边+右下角缩放） -->
+          <div id="browser-window" class="browser-window">
+            <div class="browser-edge browser-edge--top" data-edge="top" title="拖拽调整高度"></div>
+            <div class="browser-edge browser-edge--bottom" data-edge="bottom" title="拖拽调整高度"></div>
+            <div class="browser-edge browser-edge--left" data-edge="left" title="拖拽调整宽度"></div>
+            <div class="browser-edge browser-edge--right" data-edge="right" title="拖拽调整宽度"></div>
+            <div id="browser-chrome" class="browser-chrome">
+              <span class="browser-dots"><i></i><i></i><i></i></span>
+              <span class="browser-addr"><span aria-hidden="true">🔒</span><span id="browser-url" class="truncate">about:blank</span></span>
+              <span id="browser-refresh" class="browser-refresh" title="刷新预览" role="button">⟳</span>
+            </div>
+            <div id="browser-frame-wrap" class="browser-frame-wrap">
+              <iframe id="preview-frame" title="网页实时预览" class="browser-frame"
+                sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
+            </div>
+            <div id="browser-resize" class="browser-resize" title="拖拽缩放"></div>
+          </div>
+
         </div>
       </div>
-      <div id="code-panel" class="hidden h-64 border-t border-slate-800 bg-slate-900">
-        <div class="flex items-center justify-between px-3 py-1.5 text-xs text-slate-500 border-b border-slate-800">
-          <span>生成的 HTML</span>
-          <span id="code-size" class="text-slate-600"></span>
+
+      <!-- 代码模式 -->
+      <div id="panel-code" class="hidden flex-1 flex flex-col min-h-0">
+        <div class="flex-1 flex min-h-0">
+          <div id="file-tree" class="w-28 border-r border-slate-800 bg-slate-900/70 overflow-y-auto py-2" title="项目文件"></div>
+          <textarea id="code-editor" spellcheck="false" wrap="off"
+            class="flex-1 min-w-0 resize-none bg-slate-900 text-emerald-200 text-xs font-mono leading-relaxed p-3 focus:outline-none"></textarea>
         </div>
-        <pre class="h-[calc(100%-2rem)] overflow-auto p-3 text-xs leading-relaxed font-mono text-emerald-200"><code id="code-content"></code></pre>
+        <div class="flex items-center justify-between px-3 py-1.5 border-t border-slate-800 bg-slate-900/80">
+          <span id="code-size" class="text-xs text-slate-500"></span>
+          <div class="flex items-center gap-2">
+            <button id="btn-save-code" type="button" class="btn-secondary" title="保存编辑内容并刷新预览">💾 保存</button>
+            <button id="btn-download-code" type="button" class="btn-secondary" title="下载当前版本完整 HTML">⬇ 下载 HTML</button>
+          </div>
+        </div>
       </div>
     </section>
   </main>

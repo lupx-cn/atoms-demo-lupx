@@ -149,3 +149,167 @@
 
 /* 空状态占位 */
 .empty-hint { text-align: center; color: #475569; font-size: 0.8125rem; padding: 1.5rem 0.5rem; }
+
+/* ===== v2 布局：三栏 + 右侧多功能面板 ===== */
+
+/* 三栏拖拽调宽分隔条 */
+.col-resizer {
+  width: 5px; flex-shrink: 0;
+  cursor: col-resize;
+  background: rgba(30, 41, 59, 0.6);
+  transition: background 0.15s;
+}
+.col-resizer:hover, .col-resizer:active { background: rgba(34, 211, 238, 0.5); }
+
+/* 右栏 Tab（预览 / 代码） */
+.panel-tab {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8125rem; color: #94a3b8; white-space: nowrap;
+  background: transparent;
+  border: 1px solid transparent; border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.panel-tab:hover { color: #e2e8f0; background: rgba(51, 65, 85, 0.4); }
+.panel-tab--active {
+  color: #22d3ee;
+  border-color: rgba(34, 211, 238, 0.45);
+  background: rgba(8, 145, 178, 0.14);
+}
+
+/* 模拟浏览器窗口 */
+.browser-window {
+  position: absolute;
+  display: flex; flex-direction: column;
+  min-width: 320px; min-height: 220px;
+  background: #0f172a;
+  border: 1px solid rgba(71, 85, 105, 0.7);
+  border-radius: 0.625rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.browser-chrome {
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.4rem 0.625rem;
+  background: #1e293b;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.5);
+  cursor: grab;
+  user-select: none;
+}
+.browser-chrome:active { cursor: grabbing; }
+.browser-dots { display: inline-flex; gap: 0.3rem; }
+.browser-dots i { width: 0.625rem; height: 0.625rem; border-radius: 9999px; background: #334155; }
+.browser-dots i:nth-child(1) { background: #f87171; }
+.browser-dots i:nth-child(2) { background: #fbbf24; }
+.browser-dots i:nth-child(3) { background: #34d399; }
+.browser-addr {
+  flex: 1; min-width: 0;
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.6875rem; color: #94a3b8;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(71, 85, 105, 0.5);
+  border-radius: 0.375rem;
+}
+.browser-refresh {
+  color: #94a3b8; font-size: 0.875rem; line-height: 1;
+  padding: 0.15rem 0.3rem; border-radius: 0.25rem; cursor: pointer;
+  user-select: none;
+}
+.browser-refresh:hover { color: #fff; background: rgba(51, 65, 85, 0.6); }
+/* iframe 固定基准宽度渲染，通过 transform scale 整体缩放适配窗口（避免拉伸变形） */
+.browser-frame-wrap {
+  flex: 1; min-height: 0;
+  position: relative; overflow: hidden;
+  background: #fff;
+}
+.browser-frame {
+  display: block; border: none; background: #fff;
+  width: 1024px; height: 600px;
+  transform-origin: 0 0;
+}
+/* 缩放右手柄 */
+.browser-resize {
+  position: absolute; right: 0; bottom: 0;
+  width: 18px; height: 18px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 55%, rgba(148, 163, 184, 0.7) 55%);
+  border-bottom-right-radius: 0.625rem;
+}
+
+/* 文件资源管理器 */
+.file-tree-item {
+  display: flex; align-items: center; gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  margin: 0 0.375rem 0.125rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem; color: #94a3b8;
+  cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.file-tree-item:hover { background: rgba(51, 65, 85, 0.5); color: #e2e8f0; }
+.file-tree-item--active {
+  color: #22d3ee;
+  background: rgba(8, 145, 178, 0.14);
+}
+
+/* 消息卡片（assistant 生成结果） */
+.msg-card {
+  min-width: 240px; max-width: 100%;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(71, 85, 105, 0.55);
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.625rem;
+}
+.msg-card-head { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.msg-card-badge {
+  flex-shrink: 0;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.6875rem; font-weight: 700;
+  color: #22d3ee;
+  background: rgba(8, 145, 178, 0.16);
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  border-radius: 0.375rem;
+}
+.msg-card-info {
+  flex: 1; min-width: 0;
+  font-size: 0.75rem; color: #cbd5e1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.msg-card-time { flex-shrink: 0; font-size: 0.6875rem; color: #64748b; }
+.msg-card-actions { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.5rem; }
+.msg-card-btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.6875rem; color: #94a3b8;
+  background: rgba(51, 65, 85, 0.4);
+  border: 1px solid rgba(71, 85, 105, 0.5);
+  border-radius: 0.375rem; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.msg-card-btn:hover { color: #22d3ee; background: rgba(8, 145, 178, 0.12); }
+.msg-bubble--generating { color: #22d3ee; animation: pulse 1.2s ease-in-out infinite; }
+/* ===== v2.1：浏览器窗口四边缩放手柄 ===== */
+.browser-edge { position: absolute; z-index: 6; }
+.browser-edge--top { top: -4px; left: 0; right: 0; height: 10px; cursor: ns-resize; }
+.browser-edge--bottom { bottom: -4px; left: 0; right: 0; height: 10px; cursor: ns-resize; }
+.browser-edge--left { left: -4px; top: 0; bottom: 0; width: 10px; cursor: ew-resize; }
+.browser-edge--right { right: -4px; top: 0; bottom: 0; width: 10px; cursor: ew-resize; }
+.browser-edge:hover { background: rgba(34, 211, 238, 0.25); }
+
+/* ===== v2.1：消息卡片展开详情 ===== */
+.msg-card-detail {
+  margin-top: 0.5rem; padding-top: 0.5rem;
+  border-top: 1px dashed rgba(71, 85, 105, 0.5);
+  font-size: 0.75rem; color: #94a3b8; line-height: 1.6;
+}
+.msg-card-detail .d-title { color: #64748b; font-weight: 600; margin-top: 0.4rem; }
+.msg-card-detail .d-title:first-child { margin-top: 0; }
+.msg-card-detail .d-text { white-space: pre-wrap; word-break: break-word; color: #cbd5e1; }
+.msg-card-process { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; }
+.msg-card-process .step { font-size: 0.6875rem; color: #64748b; }
+.msg-card-process .step b { color: #22d3ee; font-weight: 600; }
+.msg-card-stream { margin-top: 0.5rem; padding: 0.5rem 0.625rem; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 0.5rem; }
+.msg-card-stream-label { font-size: 0.6875rem; color: #22d3ee; font-weight: 600; margin-bottom: 0.25rem; }
+.msg-card-stream-text { font-size: 0.75rem; line-height: 1.55; color: #cbd5e1; white-space: pre-wrap; word-break: break-word; }
+.d-stage { margin-top: 0.4rem; padding: 0.4rem 0.55rem; background: rgba(51, 65, 85, 0.35); border-radius: 0.375rem; }
+.d-stage b { display: block; font-size: 0.6875rem; color: #22d3ee; margin-bottom: 0.15rem; }
