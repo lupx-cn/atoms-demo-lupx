@@ -29,16 +29,33 @@ RETRY_COUNT = 1
 RETRY_BACKOFF_SECONDS = 1.0
 
 SYSTEM_PROMPT = (
-    "你是一个网页生成智能体。请根据用户需求，生成一个完整、可直接在浏览器运行的单文件 HTML 页面。\n"
-    "要求：\n"
-    "1. 所有 CSS 和 JavaScript 内嵌在同一个 HTML 文件中，不依赖外部资源（除 CDN 外）。\n"
-    "2. 输出格式分三段，顺序固定：\n"
-    "   ① 先输出 <analysis> 标签包裹的需求分析文字（1~3 句，中文，说明你如何理解用户需求）；\n"
-    "   ② 再输出 <plan> 标签包裹的方案规划文字（1~3 句，中文，说明页面结构、交互与技术要点）；\n"
-    "   ③ 最后输出 HTML 代码本身，以 <!DOCTYPE html> 开头，不要用 Markdown 代码围栏（```html/```）包裹，不要附加任何其他说明文字。\n"
-    "3. 页面 body 内只能包含真实的页面内容与交互元素，严禁添加任何说明性段落、提示语或注释性文本（包括「以下是…」「这是为您生成…」「这是为您修复了…」「我已修改…」等）。\n"
-    "4. 页面应美观、交互合理，使用中文界面。\n"
-    "5. 如果提供了上一版代码，请在保留其结构与功能的基础上进行增量修改，而不是重新生成。"
+    "你是一个网页生成智能体。布局稳定、多尺寸适配、渲染正常为第一优先级，其次是交互功能与美观。请根据用户需求，生成一个完整、可直接在浏览器运行的单文件 HTML 页面。\n"
+    "【硬性全局规则，不可违背、不可删减】\n"
+    "1. 所有 CSS 和 JavaScript 内嵌在同一个 HTML 文件中，禁止本地外部资源，CDN资源按需少量引入。\n"
+    "2. HTML头部必须固定包含标准视口标签：<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">，不允许省略、修改。\n"
+    "3. 全局强制设置 * { margin:0; padding:0; box-sizing: border-box; }，禁止删除该重置样式。\n"
+    "4. 页面所有内容包裹在统一外层容器，设置固定最大宽度 + 水平居中，左右预留安全内边距；横向多卡片容器必须配置 flex-wrap: wrap，窗口宽度不足自动换行。\n"
+    "5. 所有卡片、输入组件设置 min-width 最小宽度，避免窗口缩小时被挤压变形；禁止无限制横向铺满全屏布局。\n"
+    "6. 响应式至少包含三档断点：大屏、平板、手机，覆盖全部窗口尺寸，不存在中间宽度排版崩坏；输入区域在移动端自动垂直堆叠。\n"
+    "7. 简化阴影效果，仅使用单层柔和外阴影，禁止多层嵌套内外阴影、复杂厚重新拟态，防止页面渲染模糊、失真。\n"
+    "8. 页面主体排版仅使用弹性flex布局，禁止用绝对定位摆放页面核心模块，绝对定位仅允许用于装饰背景、悬浮提示。\n"
+    "9. 完整输出标准HTML，所有标签成对闭合，不截断DOM结构、不缺失父级容器，不存在残缺代码。\n"
+    "\n"
+    "【输出格式强制顺序，不得调换、增减】\n"
+    "① 先输出 <analysis> 标签包裹的需求分析文字（1~3 句中文，客观解读用户页面需求）；\n"
+    "② 再输出 <plan> 标签包裹的方案规划文字（1~3 句中文，说明页面容器结构、响应式方案、核心交互）；\n"
+    "③ 最后输出完整HTML代码，以 <!DOCTYPE html> 开头，不要Markdown代码围栏```html，不附加任何解释、修改说明、备注文字。\n"
+    "\n"
+    "【页面内容约束】\n"
+    "1. 页面 body 内仅存放页面业务内容、交互组件；严禁出现任何说明性文字、注释话术（如「以下是页面」「已修复布局」等）。\n"
+    "2. 全站中文界面，间距、圆角统一规范，留白充足，排版不拥挤。\n"
+    "3. 页面必须同时兼容两种渲染环境：本地浏览器直接打开、iframe内嵌预览，两种场景视觉效果保持一致。\n"
+    "\n"
+    "【增量修改规则（传入历史代码时生效）】\n"
+    "1. 完整保留原有页面DOM层级、所有交互逻辑、本地存储功能，只做增量优化，不整体重写页面；\n"
+    "2. 禁止删除原有核心布局容器、flex换行规则、viewport、全局盒模型重置；仅调整错乱样式、适配逻辑、视觉美化。\n"
+    "3. 若原有代码存在DOM残缺、布局错位，优先修复结构问题，再优化视觉。"
+
 )
 
 
@@ -193,10 +210,10 @@ def clean_generated_code(raw: str) -> str:
         in_desc_run = False
         while lines:
             raw = lines[0]
-            first = re.sub(r"<[^>]*>", "", raw).strip()
-            if not first:
+            if not raw.strip():
                 lines.pop(0)
                 continue
+            first = re.sub(r"<[^>]*>", "", raw).strip()
             if first and (_is_note(first) or _is_section_line(first)):
                 if _is_section_line(first):
                     in_desc_run = True
@@ -210,10 +227,10 @@ def clean_generated_code(raw: str) -> str:
         in_desc_run = False
         while lines:
             raw = lines[-1]
-            last = re.sub(r"<[^>]*>", "", raw).strip()
-            if not last:
+            if not raw.strip():
                 lines.pop()
                 continue
+            last = re.sub(r"<[^>]*>", "", raw).strip()
             if last and (_is_note(last) or _is_section_line(last)):
                 if _is_section_line(last):
                     in_desc_run = True
@@ -229,7 +246,20 @@ def clean_generated_code(raw: str) -> str:
     code = re.sub(r"(<body[^>]*>)([\s\S]*?)(</body>)", strip_body, code, flags=re.I)
 
     # ④ 清理剥离后残留的空块级标签
-    code = re.sub(r"<(p|div|section|blockquote)\b[^>]*>\s*<\/\1\s*>", "", code, flags=re.I)
+    #     仅清理「无任何属性」的裸空标签（说明剥离后留下的空壳）；
+    #     带 id/class/data-*/style 等属性的空容器是页面 JS 的渲染挂载点（如 <div id="taskList"></div>），必须保留
+    def strip_empty_block(m: re.Match) -> str:
+        open_tag = m.group(0)[: m.group(0).find(">") + 1]
+        if re.search(r"\s(?:id|class|data-|style)\s*=", open_tag, re.I):
+            return m.group(0)
+        return ""
+
+    code = re.sub(
+        r"<(p|div|section|blockquote)\b[^>]*>\s*<\/\1\s*>",
+        strip_empty_block,
+        code,
+        flags=re.I,
+    )
 
     return code.strip()
 

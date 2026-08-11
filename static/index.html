@@ -70,7 +70,13 @@
           <button id="tab-preview" type="button" class="panel-tab panel-tab--active" data-panel="preview">🖥️ 网页预览</button>
           <button id="tab-code" type="button" class="panel-tab" data-panel="code">📝 源代码</button>
         </div>
-        <button id="btn-download" type="button" class="btn-secondary" title="下载当前版本完整 HTML">⬇ 下载 HTML</button>
+        <div class="relative flex items-center">
+          <button id="btn-download" type="button" class="btn-secondary" title="下载当前版本完整 HTML">⬇ 下载 HTML ▾</button>
+          <div id="download-menu" class="hidden absolute right-0 top-full mt-1 z-30 min-w-[200px] rounded-lg border border-slate-700 bg-slate-800 shadow-lg py-1">
+            <button type="button" class="download-menu-item" data-download-mode="baked" title="把预览中产生的数据烘焙进 HTML，下载后打开自带数据">💾 下载（含预览数据）</button>
+            <button type="button" class="download-menu-item" data-download-mode="blank" title="下载不带数据的干净 HTML 模板">⬜ 下载（空模板）</button>
+          </div>
+        </div>
       </div>
 
       <!-- 版本标签栏（预览/代码共用，先选版本再看内容） -->
@@ -111,7 +117,7 @@
           <span id="code-size" class="text-xs text-slate-500"></span>
           <div class="flex items-center gap-2">
             <button id="btn-save-code" type="button" class="btn-secondary" title="保存编辑内容并刷新预览">💾 保存</button>
-            <button id="btn-download-code" type="button" class="btn-secondary" title="下载当前版本完整 HTML">⬇ 下载 HTML</button>
+            <button id="btn-download-code" type="button" class="btn-secondary" title="下载当前版本完整 HTML（点击选择含数据/空模板）">⬇ 下载 HTML</button>
           </div>
         </div>
       </div>

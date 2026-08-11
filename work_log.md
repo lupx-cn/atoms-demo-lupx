@@ -151,9 +151,43 @@
   ③ **R3 代码展示框高度**：根因 = `#panel-code` 缺少 Tailwind `flex` 类（`flex-col` 只设 flex-direction），切到源代码 Tab 时面板退化为 block、textarea 塌缩到默认 2~3 行；补 `flex` 类后代码区占满右栏剩余高度（≈左栏高度略矮）。
 - **验证结果**：后端 `py_compile` 通过；`_StageStreamParser` + `stream_generate` 4 个用例全过（标记跨 chunk 剥离并实时下发 stage_text、无标记回退纯 HTML、分析标记未闭合兜底不丢内容、含 `<div id='plan'>` 的 HTML 不误判）；10 个 JS 文件 `node --check` 全过；messageItem DOM 桩测试通过（生成中卡片含隐藏流式区、完成卡片展开区含「阶段内容」及两段文字）；HTTP 冒烟 7/7 全 200、health 正常。
 - **说明**：后端 `ai_generator.py` 改动需重启 uvicorn 才对新生成内容生效（当前进程未重启）；前端静态文件刷新即生效。历史会话的 `version.stageText` 为空时展开区不显示「阶段内容」，不影响旧数据。
+
+
 ## 2026-08-11 21:55 · 修复「预览模块渲染太大、页面变形」
 - **改动文件**：`static/js/app.js`、`static/index.html`、`static/css/style.css`
 - **问题现象**：右侧「网页预览」中生成的页面渲染过大、布局被拉伸变形。
 - **根因**：预览 iframe 直接铺满画布 94%×92%（v2.1 为「不截断」调大的默认窗口），页面在大视口下被整体拉伸，未做缩放适配。
 - **做了什么**：① 新增「等比缩放适配」——iframe 固定按基准宽度 `PREVIEW_BASE_WIDTH = 1024` 渲染（`index.html` 中包一层 `#browser-frame-wrap`，CSS 固定 iframe 基准尺寸 + `transform-origin: 0 0`），`applyBrowserWindow()` 按窗口内容区宽度计算 `scale = min(1, 可用宽/1024)`，用 `transform: scale()` 整体缩放，页面不再拉伸变形、也不被截断；拖拽缩放/四边手柄/右下角手柄调整窗口后自动重新适配。② 默认窗口从 94%×92% 调小为「宽度取画布 88% 且不超过基准宽+16px、高度取画布 88%」，并居中（左右 6%、上下 5%）。
 - **验证结果**：`node --check` app.js / preview.js 通过；HTTP 冒烟 3/3 全 200。前端静态文件刷新即生效。
+
+## 2026-08-11 22:47 · 修复「AI 生成 HTML 结构残缺（容器/脚本闭合标签丢失）」
+- **改动文件**：`services/ai_generator.py`、`static/js/app.js`、`work_log.md`（本轮追加记录）
+- **问题现象**：在页面输入需求（如「生成一个待办事项清单网页」）生成的 HTML 渲染效果差——无居中卡片、内容直接贴顶、样式丢失；下载的 HTML 结构残缺：`<body>` 开头缺少 `<div class="app-container">`、`<div class="app-header">` 开标签，结尾缺少 `</script>` 闭合标签，导致整段 JS 不执行、布局崩坏。此前已修改 SYSTEM_PROMPT，生成结果仍同样残缺。
+- **根因**：后端 `clean_generated_code()` 与前端 `sanitizeCode()` 第 ③ 步「body 开头/结尾裸文本说明剥离」把「去掉标签后无文本」的行一律当作空行删除，误删了纯标签的结构行（如 `<div class="app-container">`、`<div class="app-header">`、`</script>`）。前端预览/下载与后端 `done` 事件都经过该净化逻辑，因此问题与提示词无关，模型输出的正确结构被净化环节删坏。
+- **做了什么**：前后端同步修复——body 开头/结尾的剥离循环先判断「整行仅空白」（`raw.strip()` 为空）才跳过，纯标签结构行不再被删除；真正的说明文字（客套语、页面说明区块标题等）剥离逻辑保持不变。
+- **验证结果**：用用户附带的下载文件还原模型原始输出，旧逻辑可 100% 复现残缺结果，新逻辑输出结构完整（div 5/5、script 1/1、以 `</html>` 结尾，HTML 解析器零未闭合/零多余闭合标签）；说明文字剥离 5 个回归用例（前导裸文本/前导 <p>/尾部说明/尾部说明区块/真实页面）通过；前端 `sanitizeCode` 8 个用例全过；`py_compile` 与 `node --check` 通过。后端改动需重启 uvicorn 才对新生成内容生效，前端静态文件刷新即生效。
+
+
+## 2026-08-11 23:01 · 修复「净化管线第 ④ 步误删页面渲染挂载容器（空 div 被清掉）」+ work_log 留存确认
+- **改动文件**：`services/ai_generator.py`、`static/js/app.js`、`work_log.md`（本轮追加记录）
+- **问题现象**：重启并修复上一轮结构问题后重新生成待办清单网页（用户附件 `F:/download/生成一个待办事项清单网页-V1 (3).html`），页面仍然不正常——新增任务后列表区域始终空白，任务列表不渲染；点击「进行中」「已完成」筛选无任何变化，也看不到刚添加的任务；仅顶部统计文字（共 N 项任务，M 项进行中）有更新。
+- **根因**：依然是本项目净化管线自身的问题，与模型输出无关。后端 `clean_generated_code()` 与前端 `sanitizeCode()` 第 ④ 步「清理剥离后残留的空块级标签」用正则 `<(p|div|section|blockquote)[^>]*>\s*</\1>` 删除所有空块级标签，把模型生成的合法空容器 `<div class="task-list" id="taskList"></div>`（页面 JS 的列表渲染挂载点）当作「剥离后残留空壳」一并删掉；JS `render()` 执行 `taskList.innerHTML = ...` 时 `taskList` 为 null 抛异常，导致列表永不渲染、筛选与新增看似无效。还原模型原始输出后确认该 div 在原始代码中存在，净化后被删除（旧逻辑逐字节复现坏文件）。
+- **做了什么**：前后端同步修复第 ④ 步——只清理「无任何属性」的裸空标签（说明剥离后留下的空壳），带 `id/class/data-*/style` 等属性的空容器一律保留（它们是 JS 渲染挂载点，如 `#taskList`、`#filterBar`、`ul#todoList`）；说明文字剥离逻辑不变。
+- **验证结果**：用用户附件还原模型原始输出，修复后 `#taskList` 容器保留，输出与坏文件不再相同；HTML 结构解析零未闭合/零多余闭合标签；后端 7 个用例（空挂载点保留、裸空标签清理、说明剥离后空壳清理、前导/尾部说明剥离、真实页面、结构完整）全过；前端 `sanitizeCode` 6 个用例全过；`py_compile`、`node --check` 通过；最终输出中 JS `getElementById` 引用的全部 7 个 id（addBtn/taskInput/addBtn/filterBar/taskList/taskCount/clearCompletedBtn/statsRow）均存在于 HTML。修复后的可运行版本另存为 `_todo_fixed_preview.html` 供对比，验证后可删除。后端改动需重启 uvicorn 生效，前端刷新即生效。
+
+
+## 2026-08-11 23:02 · 确认「净化第 ④ 步误删渲染挂载容器」修复已落地（本轮为确认与日志留存）
+- **本轮内容**：用户确认第 ④ 步修复方案并要求把修改内容、问题与时间写入 work_log；本轮无新增代码改动。
+- **改动文件**：`work_log.md`（本轮追加记录）；代码改动详见上方 `2026-08-11 23:01` 条目（`services/ai_generator.py`、`static/js/app.js` 第 ④ 步空标签清理改为仅清理无属性的裸空标签，保留 `id/class/data-*/style` 空容器）。
+- **生效方式**：前端刷新即生效；后端需重启 uvicorn 后重新生成验证。
+
+
+## 2026-08-11 23:23 · 实施「预览存储桥（按会话持久化）+ 下载时烘焙数据/空模板二选一」
+- **改动文件**：`static/js/preview.js`、`static/js/app.js`、`static/index.html`、`static/css/style.css`、`work_log.md`（本轮追加记录）
+- **问题现象**：在预览里生成的待办清单中添加任务后，切到其他会话再切回来（或点预览刷新按钮），刚添加的数据全部消失。根因：预览 iframe 的 sandbox 没有 `allow-same-origin`，生成页访问 `localStorage` 会抛 SecurityError，而生成页的读写都包在 try/catch 里被静默吞掉，数据只存在于内存，预览一重建就丢。
+- **方案决策**：与用户对齐后确定折中方案——预览内持久化用「存储桥」解决（数据按会话存在应用侧，不污染 HTML 源代码）；下载时提供两个选项：**含预览数据**（把数据烘焙进 HTML，兑现“数据存进 html 源代码”的诉求）与**空模板**（干净的 HTML）。
+- **做了什么**：
+  ① **存储桥（preview.js）**：`renderCode(code, sessionId)` 在生成页 `<body>` 后注入一段前置脚本，把 `localStorage/sessionStorage` 替换为内存代理（含 `getItem/setItem/removeItem/clear/key/length`）；渲染时按会话 ID 从应用 localStorage（key 前缀 `atoms-preview:`）回灌数据作为 seed，生成页内的变更通过 `postMessage`（命名空间 `atoms-preview-storage`，校验消息来源为本预览 iframe）回写父页面并按会话保存。效果：切会话/刷新预览数据不丢，不同会话数据隔离，沙箱安全级别不变。
+  ② **会话接线（app.js）**：新增 `renderPreview(code)` 辅助函数，12 处 `renderCode` 调用全部改为自动带 `getState().activeSessionId`。
+  ③ **下载二选一（app.js + index.html + style.css）**：下载按钮改为下拉菜单，两项分别为「💾 下载（含预览数据）」「⬜ 下载（空模板）」；`bakePreviewData()` 把会话的预览存储数据以 `<script>localStorage.setItem(...)</script>` 形式注入 `<body>` 之后（JSON 中的 `<` 转义为 `\u003c` 防注入破坏），无数据时原样返回；空模板直接下载干净代码；点击菜单外/Esc 关闭菜单；代码面板下载按钮同样走该菜单。
+- **验证结果**：`node --check` app.js / preview.js 通过；桥注入 16 个单测全过（注入位置、seed 回灌、set/remove/clear 消息处理、会话隔离、无关消息忽略、烘焙脚本位置与转义、空数据原样返回）；端到端 17 项验证通过（真实桥脚本在页面 vm 中 getItem/setItem/postMessage/remove/clear/length 全部正确、app.js 接线完整、index.html/style.css 菜单元素齐全）。`renderPreview` 出现 13 次 = 12 处调用 + 1 处函数定义，接线正确。后端 `ai_generator.py` 改动（前两轮第 ③④ 步净化修复）仍为未提交状态，需重启 uvicorn 生效；本轮前端改动刷新页面即生效。

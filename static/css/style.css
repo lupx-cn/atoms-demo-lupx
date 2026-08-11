@@ -313,3 +313,20 @@
 .msg-card-stream-text { font-size: 0.75rem; line-height: 1.55; color: #cbd5e1; white-space: pre-wrap; word-break: break-word; }
 .d-stage { margin-top: 0.4rem; padding: 0.4rem 0.55rem; background: rgba(51, 65, 85, 0.35); border-radius: 0.375rem; }
 .d-stage b { display: block; font-size: 0.6875rem; color: #22d3ee; margin-bottom: 0.15rem; }
+/* 下载菜单（含预览数据 / 空模板） */
+.download-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.download-menu-item:hover {
+  color: #22d3ee;
+  background: rgba(8, 145, 178, 0.14);
+}

@@ -2,7 +2,7 @@
 import { getState, setState, resetPhase, getActiveSession, subscribe } from './state.js';
 import { loadSessions, saveSessions, loadActiveSessionId, saveActiveSessionId, loadPref, savePref } from './storage.js';
 import { streamGenerate } from './api.js';
-import { renderCode, getFrame } from './preview.js';
+import { renderCode, getFrame, getPreviewStorage } from './preview.js';
 import { renderStatusCards } from './components/statusCard.js';
 import { createMessageElement } from './components/messageItem.js';
 import { renderVersionBar } from './components/versionBar.js';
@@ -40,6 +40,7 @@ const els = {
   panelCode: document.getElementById('panel-code'),
   btnDownload: document.getElementById('btn-download'),
   btnDownloadCode: document.getElementById('btn-download-code'),
+  downloadMenu: document.getElementById('download-menu'),
   btnSaveCode: document.getElementById('btn-save-code'),
   codeEditor: document.getElementById('code-editor'),
   codeSize: document.getElementById('code-size'),
@@ -226,7 +227,7 @@ function renderVersionBarUI() {
       const v = s.versions[index];
       const clean = displayCode(v.code);
       setState({ currentCode: clean });
-      renderCode(clean);
+      renderPreview(clean);
       syncEditor();
       updateBrowserUrl();
       persistSessions();
@@ -243,7 +244,7 @@ function previewVersionFromCard(idx) {
   const v = s.versions[idx];
   const clean = displayCode(v.code);
   setState({ currentCode: clean });
-  renderCode(clean);
+  renderPreview(clean);
   syncEditor();
   updateBrowserUrl();
   renderVersionBarUI();
@@ -317,9 +318,9 @@ function deleteSession(id) {
   renderVersionBarUI();
   const code = displayCode(getBaseCode());
   if (code) {
-    renderCode(code);
+    renderPreview(code);
   } else {
-    renderCode(WELCOME_HTML);
+    renderPreview(WELCOME_HTML);
   }
   syncEditor();
   updateBrowserUrl();
@@ -345,9 +346,9 @@ function switchSession(id) {
 
   const code = displayCode(getBaseCode());
   if (code) {
-    renderCode(code);
+    renderPreview(code);
   } else {
-    renderCode(WELCOME_HTML);
+    renderPreview(WELCOME_HTML);
   }
   setState({ currentCode: code });
   syncEditor();
@@ -366,7 +367,7 @@ function newSession() {
   saveActiveSessionId(session.id);
   renderAll();
   renderVersionBarUI();
-  renderCode(WELCOME_HTML);
+  renderPreview(WELCOME_HTML);
   syncEditor();
   updateBrowserUrl();
   els.promptInput.value = '';
@@ -419,7 +420,7 @@ function saveCode() {
   session.lastCode = code;
   session.updatedAt = Date.now();
   setState({ currentCode: code });
-  renderCode(code);
+  renderPreview(code);
   updateBrowserUrl();
   persistSessions();
   renderVersionBarUI();
@@ -428,11 +429,47 @@ function saveCode() {
 }
 
 /** 下载当前/指定版本 HTML：文件名 = 会话项目名-V{n}.html */
+/** 渲染预览：自动带上当前会话 ID（预览存储桥按会话隔离，切会话/刷新不丢数据） */
+function renderPreview(code) {
+  renderCode(code, getState().activeSessionId);
+}
+
+let downloadTargetIdx = null; // 打开下载菜单时的目标版本（null = 当前版本）
+
+/** 下载入口：无 mode 时打开下载菜单（含预览数据 / 空模板 二选一） */
 function downloadHtml(idx) {
+  downloadTargetIdx = (idx != null && idx >= 0) ? idx : null;
+  els.downloadMenu.classList.toggle('hidden');
+}
+
+function closeDownloadMenu() {
+  els.downloadMenu.classList.add('hidden');
+}
+
+/** 把某会话的预览存储数据烘焙进 HTML（注入 localStorage.setItem 前置脚本），实现“下载自带数据” */
+function bakePreviewData(code, sessionId) {
+  const data = getPreviewStorage(sessionId);
+  const entries = Object.entries(data).filter(([, v]) => v != null);
+  if (!entries.length) return code;
+  const script = '<script>try{' + entries.map(([k, v]) => {
+    const keyJson = JSON.stringify(k).replace(/</g, '\\u003c');
+    const valJson = JSON.stringify(v).replace(/</g, '\\u003c');
+    return 'localStorage.setItem(' + keyJson + ',' + valJson + ');';
+  }).join('') + '}catch(e){}</script>';
+  const bodyMatch = code.match(/(<body[^>]*>)/i);
+  if (bodyMatch) return code.replace(/(<body[^>]*>)/i, '$1' + script);
+  const headClose = code.match(/(<\/head>)/i);
+  if (headClose) return code.replace(/(<\/head>)/i, script + '$1');
+  return script + code;
+}
+
+/** 执行下载：mode='baked' 烘焙预览数据，mode='blank' 下载空模板 */
+function performDownload(mode) {
+  closeDownloadMenu();
   const session = getActiveSession();
   if (!session) return;
   const activeIdx = session.activeVersionIndex >= 0 ? session.activeVersionIndex : 0;
-  const target = (idx != null && idx >= 0) ? idx : activeIdx;
+  const target = downloadTargetIdx != null ? downloadTargetIdx : activeIdx;
   const v = session.versions && session.versions[target] ? session.versions[target] : null;
   const code = displayCode(v ? v.code : getState().currentCode);
   if (!code) { showToast('暂无生成内容', 'error'); return; }
@@ -440,8 +477,9 @@ function downloadHtml(idx) {
   const label = v ? v.label : 'V' + (target + 1);
   const base = (session.title || 'atoms-demo').replace(/[\\/:*?"<>|]/g, '_').trim() || 'atoms-demo';
   const filename = base + '-' + label + '.html';
-  downloadTextFile(code, filename);
-  showToast('已下载 ' + filename, 'success');
+  const content = mode === 'baked' ? bakePreviewData(code, session.id) : code;
+  downloadTextFile(content, filename);
+  showToast('已下载 ' + filename + (mode === 'baked' ? '（含预览数据）' : '（空模板）'), 'success');
 }
 
 function updateBrowserUrl() {
@@ -556,7 +594,7 @@ function initBrowserWindow() {
 
   els.browserRefresh.addEventListener('click', () => {
     const code = getState().currentCode;
-    if (code) { renderCode(code); showToast('预览已刷新', 'info'); }
+    if (code) { renderPreview(code); showToast('预览已刷新', 'info'); }
   });
 
   window.addEventListener('resize', () => { if (panelTab === 'preview') applyBrowserWindow(); });
@@ -725,8 +763,8 @@ function sanitizeCode(raw) {
     let inDescRun = false;
     while (lines.length) {
       const raw = lines[0];
+      if (!raw.trim()) { lines.shift(); continue; }
       const first = raw.replace(/<[^>]*>/g, '').trim();
-      if (!first) { lines.shift(); continue; }
       if (first && (isNote(first) || isSectionLine(first))) {
         notes.push(first);
         if (isSectionLine(first)) inDescRun = true;
@@ -739,8 +777,8 @@ function sanitizeCode(raw) {
     inDescRun = false;
     while (lines.length) {
       const raw = lines[lines.length - 1];
+      if (!raw.trim()) { lines.pop(); continue; }
       const last = raw.replace(/<[^>]*>/g, '').trim();
-      if (!last) { lines.pop(); continue; }
       if (last && (isNote(last) || isSectionLine(last))) {
         notes.push(last);
         if (isSectionLine(last)) inDescRun = true;
@@ -754,7 +792,13 @@ function sanitizeCode(raw) {
   });
 
   // ④ 清理剥离后残留的空块级标签
-  code = code.replace(/<(p|div|section|blockquote)\b[^>]*>\s*<\/\1\s*>/gi, '');
+  //     仅清理「无任何属性」的裸空标签（说明剥离后留下的空壳）；
+  //     带 id/class/data-*/style 等属性的空容器是页面 JS 的渲染挂载点（如 <div id="taskList"></div>），必须保留
+  code = code.replace(/<(p|div|section|blockquote)\b[^>]*>\s*<\/\1\s*>/gi, (whole) => {
+    const openTag = whole.slice(0, whole.indexOf('>') + 1);
+    if (/\s(?:id|class|data-|style)\s*=/.test(openTag)) return whole;
+    return '';
+  });
 
   return { code, note: notes.filter(Boolean).join('\n') };
 }
@@ -834,7 +878,7 @@ async function handleSend() {
           session.activeVersionIndex = session.versions.length - 1;
           session.updatedAt = Date.now();
           setState({ phase: 'done', currentCode: clean.code });
-          renderCode(clean.code);
+          renderPreview(clean.code);
           updateBrowserUrl();
           syncEditor();
           persistSessions();
@@ -938,6 +982,22 @@ function bindEvents() {
   els.btnSaveCode.addEventListener('click', saveCode);
   els.codeEditor.addEventListener('input', updateCodeSize);
 
+  // 下载菜单：含预览数据 / 空模板
+  els.downloadMenu.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-download-mode]');
+    if (item) performDownload(item.dataset.downloadMode);
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#download-menu') &&
+        !e.target.closest('#btn-download') &&
+        !e.target.closest('#btn-download-code')) {
+      closeDownloadMenu();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDownloadMenu();
+  });
+
   subscribe(() => renderStatusCards(els.statusCards, getState().phase));
 }
 
@@ -977,9 +1037,9 @@ function init() {
   renderVersionBarUI();
   updateBrowserUrl();
   if (code) {
-    renderCode(code);
+    renderPreview(code);
   } else {
-    renderCode(WELCOME_HTML);
+    renderPreview(WELCOME_HTML);
   }
   syncEditor();
 
