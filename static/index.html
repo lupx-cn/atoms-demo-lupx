@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atoms-Demo · AI 网页生成器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
+  <!-- 顶栏 -->
+  <header class="h-14 flex items-center justify-between px-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur z-20">
+    <div class="flex items-center gap-2.5">
+      <span class="text-xl leading-none" aria-hidden="true">⚛️</span>
+      <h1 class="text-lg font-semibold tracking-tight">Atoms-Demo</h1>
+      <span class="text-xs text-slate-500 hidden sm:inline">AI 网页生成原型</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span id="health-dot" class="w-2 h-2 rounded-full bg-slate-600" title="后端连接状态：检测中"></span>
+      <button id="btn-new-session" type="button" class="btn-secondary">＋ 新会话</button>
+      <button id="btn-toggle-code" type="button" class="btn-secondary">查看代码</button>
+    </div>
+  </header>
+
+  <!-- 双栏主体 -->
+  <main class="flex h-[calc(100vh-3.5rem)]">
+    <!-- 左侧：会话面板 -->
+    <aside class="w-[400px] min-w-[320px] max-w-[460px] flex flex-col border-r border-slate-800 bg-slate-900">
+      <!-- 会话列表（可折叠） -->
+      <section id="session-list-wrap" class="hidden border-b border-slate-800 bg-slate-900/90">
+        <div class="px-3 py-2 text-xs text-slate-500 flex items-center justify-between">
+          <span>会话列表</span>
+          <button id="btn-collapse-sessions" type="button" class="text-slate-400 hover:text-slate-200">收起</button>
+        </div>
+        <ul id="session-list" class="max-h-40 overflow-y-auto px-2 pb-2 space-y-1"></ul>
+      </section>
+
+      <!-- 消息列表 -->
+      <section id="message-list" class="flex-1 overflow-y-auto px-4 py-4 space-y-4"></section>
+
+      <!-- Agent 状态卡片 -->
+      <section id="status-cards" class="px-4 py-3 border-t border-slate-800"></section>
+
+      <!-- 输入区 -->
+      <section class="p-3 border-t border-slate-800">
+        <div class="flex items-end gap-2">
+          <textarea id="prompt-input" rows="3" placeholder="描述你想生成的网页，例如：生成一个待办事项清单网页…"
+            class="flex-1 resize-none bg-slate-800/70 border border-slate-700 rounded-lg px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"></textarea>
+          <button id="btn-send" type="button" class="btn-primary">生成</button>
+        </div>
+        <p class="mt-2 text-[11px] text-slate-600">Enter 发送 · Shift+Enter 换行</p>
+      </section>
+    </aside>
+
+    <!-- 右侧：预览 + 代码 -->
+    <section class="flex-1 flex flex-col bg-slate-950 min-w-0">
+      <div class="flex-1 relative min-h-0">
+        <iframe id="preview-frame" title="网页实时预览" class="absolute inset-0 w-full h-full bg-white"
+          sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
+        <div id="preview-placeholder"
+          class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 pointer-events-none">
+          <div class="text-4xl mb-3" aria-hidden="true">🖥️</div>
+          <p class="text-sm">输入需求并点击「生成」，预览区将实时展示 AI 生成的网页</p>
+        </div>
+      </div>
+      <div id="code-panel" class="hidden h-64 border-t border-slate-800 bg-slate-900">
+        <div class="flex items-center justify-between px-3 py-1.5 text-xs text-slate-500 border-b border-slate-800">
+          <span>生成的 HTML</span>
+          <span id="code-size" class="text-slate-600"></span>
+        </div>
+        <pre class="h-[calc(100%-2rem)] overflow-auto p-3 text-xs leading-relaxed font-mono text-emerald-200"><code id="code-content"></code></pre>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
