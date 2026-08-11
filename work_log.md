@@ -191,3 +191,10 @@
   ② **会话接线（app.js）**：新增 `renderPreview(code)` 辅助函数，12 处 `renderCode` 调用全部改为自动带 `getState().activeSessionId`。
   ③ **下载二选一（app.js + index.html + style.css）**：下载按钮改为下拉菜单，两项分别为「💾 下载（含预览数据）」「⬜ 下载（空模板）」；`bakePreviewData()` 把会话的预览存储数据以 `<script>localStorage.setItem(...)</script>` 形式注入 `<body>` 之后（JSON 中的 `<` 转义为 `\u003c` 防注入破坏），无数据时原样返回；空模板直接下载干净代码；点击菜单外/Esc 关闭菜单；代码面板下载按钮同样走该菜单。
 - **验证结果**：`node --check` app.js / preview.js 通过；桥注入 16 个单测全过（注入位置、seed 回灌、set/remove/clear 消息处理、会话隔离、无关消息忽略、烘焙脚本位置与转义、空数据原样返回）；端到端 17 项验证通过（真实桥脚本在页面 vm 中 getItem/setItem/postMessage/remove/clear/length 全部正确、app.js 接线完整、index.html/style.css 菜单元素齐全）。`renderPreview` 出现 13 次 = 12 处调用 + 1 处函数定义，接线正确。后端 `ai_generator.py` 改动（前两轮第 ③④ 步净化修复）仍为未提交状态，需重启 uvicorn 生效；本轮前端改动刷新页面即生效。
+
+## 2026-08-11 23:41 · 清理残留 + 提交推送 + 新增交付说明文档
+- **新增文件**：`DELIVERY_NOTES.md`（笔试交付说明：实现思路与关键取舍、当前完成程度、后续扩展与优先级，附与 Atoms 官方能力对照表；在线 Demo 链接待部署后回填）
+- **删除文件**：`_todo_fixed_preview.html`（对比用临时文件，已完成使命）
+- **改动文件**：`services/ai_generator.py`（删除第 31-40 行被注释掉的旧 SYSTEM_PROMPT 残留，463→452 行；净化和 SYSTEM_PROMPT 升级改动保留）、`work_log.md`（本轮追加记录）
+- **做了什么**：① 用户确认删除临时文件与注释残留，已执行；② 由于沙箱环境 apply_patch 无法执行（WindowsApps 下 codex.exe 被拦截），改用 PowerShell 原生行删除（无 BOM、UTF-8 编码保持不变），`py_compile` 通过；③ git 提交 `68bcbe2`（6 文件，+274/-42，含净化修复与预览存储桥）并推送至 GitHub master（远程 `git@github.com:lupx-cn/atoms-demo-lupx.git`）；④ 核实 atoms.dev 官网与文档站（AI 员工分工协作、对话式生成、Publish/Share、集成 GitHub/Supabase/Stripe 等），据此撰写 `DELIVERY_NOTES.md` 供笔试提交附用。
+- **验证结果**：`_todo_fixed_preview.html` 已确认删除；`ai_generator.py` 语法校验通过；提交推送成功。
