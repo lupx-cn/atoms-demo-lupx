@@ -37,6 +37,18 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def no_cache_static(request, call_next):
+    """静态资源带 no-cache：浏览器每次重新校验，避免旧版 JS/CSS 被缓存坑到。
+
+    仅作用于页面与静态文件（非 /api/*）；SSE 接口自身已有 Cache-Control: no-cache。
+    """
+    response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
 class GenerateRequest(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=4000, description="用户自然语言需求")
     history_code: str | None = Field(None, max_length=200_000, description="上一轮生成的 HTML，用于增量迭代")

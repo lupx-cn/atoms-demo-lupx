@@ -218,3 +218,18 @@
   ③ **滚动不打断阅读**：自动滚动改为「仅当用户停留在底部附近（距底部 <120px）才跟随滚到底」，用户上滑阅读历史阶段文字时不被强制拉回底部。
   ④ **样式**：`style.css` 新增 `.msg-card-stream-block + .msg-card-stream-block` 分隔线，区分两个阶段的文字块。
 - **验证结果**：`node --check` app.js / messageItem.js 通过；Fake DOM 单测 4 项全过（analyzing 块创建与 label/文本、planning 块插入顺序且 analyzing 文本保留、planning 文本原位更新不重复建块、上滑时 scrollTop 保持不动/底部时跟随滚动）。Render 网关聚合导致的打字机动画问题按用户确认保持现状，本轮未处理。
+## 2026-08-12 11:06 · 复核「阶段文案修复」在本地 8000 生效（仅验证，无代码改动）
+- **改动文件**：`work_log.md`（本轮追加记录）；本轮无新增/修改业务代码。
+- **做了什么**：用户本地起服务后仍看到「任何阶段都显示正在生成代码」，本轮逐项复核：① 本地文件确认已含修复（`PHASE_ACTIVE_LABEL`、`liveAssistantInfoEl`、`onStatus` 更新文案）；② 端口检查：8000 由 PID 4672（venv python，11:04 启动）监听，8010 另有 PID 11528 残留监听（此前诊断遗留，本次未处理）；③ 直接请求 `http://127.0.0.1:8000/js/app.js` 与 `messageItem.js`，返回 43,130B / 7,527B，均含 `PHASE_ACTIVE_LABEL`/`liveAssistantInfoEl`/`需求分析中`，确认**服务端下发的就是新代码**；④ 用真实 `messageItem.js` 模块 + 轻量 DOM 桩验证：phase=analyzing/planning/generating/rendering 分别渲染「需求分析中…/方案规划中…/正在生成代码…/渲染预览中…」，phase 缺失时才回退「正在生成代码…」。
+- **结论**：修复已生效于本地 8000 服务。用户浏览器仍显示旧文案，最大概率是**浏览器缓存了旧版 app.js/messageItem.js**（ES Module 被缓存、普通刷新未强刷）；建议硬刷新（Ctrl+F5 / Ctrl+Shift+R）或无痕窗口验证，并可在 DevTools Network 确认 `js/app.js` 大小为 43,130B。
+- **验证结果**：真实模块渲染 5 组 phase 全部符合预期；HTTP 直取 8000 静态文件确认含新标记。
+## 2026-08-12 11:07 · 解答「0.0.0.0:8000 与 localhost:8000 页面不同，本地测试用哪个」（仅答疑，无代码改动）
+- **改动文件**：`work_log.md`（本轮追加记录）；本轮无新增/修改业务代码。
+- **做了什么**：说明 0.0.0.0 是服务端「监听所有网卡」的绑定地址（本地 8000 服务即监听 0.0.0.0:8000），浏览器访问应使用 `http://localhost:8000`（或 `http://127.0.0.1:8000`）。两个地址页面不同的原因是浏览器按 origin 隔离 localStorage 与缓存：`localhost` / `127.0.0.1` / `0.0.0.0` 是三个不同 origin，会话数据与旧版 JS 缓存互不共享；此前「仍在显示正在生成代码」很可能来自 `0.0.0.0` origin 下缓存的旧版 app.js。
+- **验证结果**：无需验证；建议统一使用 `http://localhost:8000` + Ctrl+F5 硬刷新，并在 DevTools Network 确认 `js/app.js` 为 43,130B 新版。
+## 2026-08-12 11:17 · 静态资源加 Cache-Control: no-cache（根治旧版 JS 缓存问题）+ 复核「阶段文案」预期行为
+- **改动文件**：`main.py`（新增 `no_cache_static` HTTP 中间件）、`work_log.md`（本轮追加记录）
+- **问题现象**：用户本地 8000 已下发新版 JS（app.js 43,130B 含 PHASE_ACTIVE_LABEL/需求分析中），但浏览器仍显示「生成中 正在生成代码…」——根因是 uvicorn 静态文件无 Cache-Control 头，浏览器启发式缓存旧版 app.js/messageItem.js。
+- **做了什么**：`main.py` 新增 `@app.middleware("http") no_cache_static`：非 `/api/*` 的响应一律 `setdefault("Cache-Control", "no-cache")`，浏览器每次重新校验（ETag 命中返回 304，变更返回 200 新内容）；SSE 接口自身已有 no-cache 不受影响。
+- **预期行为确认**：修复后生成中卡片文案应依次为「需求分析中…/方案规划中…/正在生成代码…/渲染预览中…」，且发送需求后**第一句就应是「生成中 需求分析中…」**（新代码创建卡片时即按 analyzing 渲染，不依赖后端回包）。
+- **验证结果**：TestClient 进程内验证 `/`、`/js/app.js`、`/css/style.css` 均带 `Cache-Control: no-cache`，`/api/health` 无该头（符合预期）；`main.py` 语法 OK。生效需重启本地 uvicorn（当前 8000 服务 PID 19116 未重启，仍为旧进程）。
