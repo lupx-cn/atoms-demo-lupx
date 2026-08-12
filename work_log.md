@@ -198,3 +198,23 @@
 - **改动文件**：`services/ai_generator.py`（删除第 31-40 行被注释掉的旧 SYSTEM_PROMPT 残留，463→452 行；净化和 SYSTEM_PROMPT 升级改动保留）、`work_log.md`（本轮追加记录）
 - **做了什么**：① 用户确认删除临时文件与注释残留，已执行；② 由于沙箱环境 apply_patch 无法执行（WindowsApps 下 codex.exe 被拦截），改用 PowerShell 原生行删除（无 BOM、UTF-8 编码保持不变），`py_compile` 通过；③ git 提交 `68bcbe2`（6 文件，+274/-42，含净化修复与预览存储桥）并推送至 GitHub master（远程 `git@github.com:lupx-cn/atoms-demo-lupx.git`）；④ 核实 atoms.dev 官网与文档站（AI 员工分工协作、对话式生成、Publish/Share、集成 GitHub/Supabase/Stripe 等），据此撰写 `DELIVERY_NOTES.md` 供笔试提交附用。
 - **验证结果**：`_todo_fixed_preview.html` 已确认删除；`ai_generator.py` 语法校验通过；提交推送成功。
+
+## 2026-08-12 10:50 · 诊断「部署后打字机逐字输出效果看不到」（仅诊断，无代码改动）
+- **改动文件**：`work_log.md`（本轮追加记录）；本轮无新增/修改业务代码，仅排查线上问题。
+- **问题现象**：部署于 Render 的 https://atoms-demo-lupx.onrender.com/ 上，需求完成后点击展开「需求分析 / 方案规划」，能看到阶段内容文本，但看不到打字机逐字输出的动画效果。
+- **排查过程**：
+  ① 确认线上前端 JS 与本地一致：`index.html`、`js/app.js`（37,280B）、`js/components/messageItem.js` 均含 v2.2 流式能力（`updateLiveStream` / `onStageText` / `.msg-card-stream` / `stageText` 持久化），`js/api.js` 与本地逐字符一致（含 `stage_text` 事件分发）；git 历史确认 `_StageStreamParser` / `stage_text` / `updateLiveStream` 由 v2.2 提交 `a659f7b` 引入，origin/main 与 origin/master 均包含，排除「代码未上线/功能缺失」。
+  ② 实测线上 SSE 时序（`curl -N` 禁缓冲）：首包（含 `status(analyzing)`）延迟约 1.5s 才到达客户端；本地 uvicorn 对照首包仅 19ms。64B 小粒度读取线上时，`status(analyzing)` 约 6.5s 后才读出，其后 `stage_text` 以 30–50ms/帧、每帧 1–2 字符的真实逐字节奏到达（共 50+ 帧），内容完整（`\n用`、`户`…）。
+- **根因结论**：后端 v2.2 `stage_text` 逐字流真实存在且已上线；看不到打字机效果的原因是 **Render 免费实例网关对 SSE 首个数据块做了缓冲聚合**——`status(analyzing)` + 需求分析/方案规划的大段文字被攒成一个延迟约 1.5~6s 才一次性到达的大包，浏览器端 `updateLiveStream` 只能一次性渲染整段文本，逐字动画被吞掉。次要因素：前端进入 `generating` 阶段后 `onStatus` 会隐藏 `.msg-card-stream`，实时窗口本身较短。
+- **证据链**：展开能看到阶段内容 = `stageText` 已正确持久化到 `version.stageText`，说明内容生成链路完整；差异仅在传输节奏。工作日志此前记录的「deploy 后未重启后端导致旧版」问题已排除（实测线上后端已是新版）。
+- **可选修复方向（未实施，待用户决策）**：① 前端把「打字机」改为**自渲染动画**（用收到的完整 stageText + CSS/JS 本地逐字展示，不依赖网络刷新节奏，最稳妥）；② 后端在流中周期性 `yield` 空注释粉刷（缓解网关聚合，但主因是 Render 网关，效果有限）；③ 接受现状（真实逐字流存在，仅在慢网/网关聚合下看不到动画）。
+- **验证结果**：线上与本地代码逐字符比对一致；curl 实测确认 `stage_text` 逐字帧真实到达且内容完整；本地 8010 对照服务已停止，临时诊断文件已清理。
+## 2026-08-12 10:58 · 修复「生成中状态文案不随阶段变化」+「阶段文字被覆盖、无法上滑回看需求分析」
+- **改动文件**：`static/js/app.js`、`static/js/components/messageItem.js`、`static/css/style.css`、`work_log.md`（本轮追加记录）
+- **问题现象**：① 生成过程中无论处于需求分析/方案规划/代码生成/渲染预览哪个阶段，生成中卡片的状态文案始终显示「正在生成代码…」；② 方案规划文字出现后，上滑鼠标看不到之前「需求分析」的文字。
+- **做了什么**：
+  ① **阶段文案**：`messageItem.js` 新增导出 `PHASE_ACTIVE_LABEL`（analyzing=需求分析中… / planning=方案规划中… / generating=正在生成代码… / rendering=渲染预览中…）；生成中卡片初始文案按 `opts.phase` 显示（`renderMessages` 传入当前 `getState().phase`）；`app.js` 捕获 `liveAssistantInfoEl`，`onStatus` 收到新 phase 时实时切换文案。
+  ② **阶段文字分块堆叠**：`updateLiveStream` 重构——实时区不再「单块覆盖」，而是按 stage 建独立块（`.msg-card-stream-block`，带 `data-stage`），按 analyzing → planning 顺序堆叠插入；需求分析文字在方案规划出现后保留在下方/上方可回看，方案规划继续流式更新本块。
+  ③ **滚动不打断阅读**：自动滚动改为「仅当用户停留在底部附近（距底部 <120px）才跟随滚到底」，用户上滑阅读历史阶段文字时不被强制拉回底部。
+  ④ **样式**：`style.css` 新增 `.msg-card-stream-block + .msg-card-stream-block` 分隔线，区分两个阶段的文字块。
+- **验证结果**：`node --check` app.js / messageItem.js 通过；Fake DOM 单测 4 项全过（analyzing 块创建与 label/文本、planning 块插入顺序且 analyzing 文本保留、planning 文本原位更新不重复建块、上滑时 scrollTop 保持不动/底部时跟随滚动）。Render 网关聚合导致的打字机动画问题按用户确认保持现状，本轮未处理。

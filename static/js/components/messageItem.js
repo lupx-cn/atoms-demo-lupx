@@ -9,6 +9,14 @@ const PROCESS_STEPS = [
   { key: 'rendering', label: '渲染预览' },
 ];
 
+/** 生成中卡片状态文案（随状态机 phase 切换） */
+export const PHASE_ACTIVE_LABEL = {
+  analyzing: '需求分析中…',
+  planning: '方案规划中…',
+  generating: '正在生成代码…',
+  rendering: '渲染预览中…',
+};
+
 function fmtTime(ts) {
   if (!ts) return '';
   const d = new Date(ts);
@@ -44,18 +52,13 @@ export function createMessageElement(msg, opts = {}) {
     badge.textContent = '生成中';
     const info = document.createElement('span');
     info.className = 'msg-card-info';
-    info.textContent = '正在生成代码…';
+    info.textContent = PHASE_ACTIVE_LABEL[opts.phase] || '正在生成代码…';
     head.append(badge, info);
     const size = document.createElement('div');
     size.className = 'msg-card-size msg-card-info';
     size.textContent = '';
     const stream = document.createElement('div');
     stream.className = 'msg-card-stream hidden';
-    const streamLabel = document.createElement('div');
-    streamLabel.className = 'msg-card-stream-label';
-    const streamText = document.createElement('div');
-    streamText.className = 'msg-card-stream-text';
-    stream.append(streamLabel, streamText);
     card.append(head, size, stream);
     wrap.appendChild(card);
     return wrap;

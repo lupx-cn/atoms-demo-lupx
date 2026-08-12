@@ -4,7 +4,7 @@ import { loadSessions, saveSessions, loadActiveSessionId, saveActiveSessionId, l
 import { streamGenerate } from './api.js';
 import { renderCode, getFrame, getPreviewStorage } from './preview.js';
 import { renderStatusCards } from './components/statusCard.js';
-import { createMessageElement } from './components/messageItem.js';
+import { createMessageElement, PHASE_ACTIVE_LABEL } from './components/messageItem.js';
 import { renderVersionBar } from './components/versionBar.js';
 import { renderFileTree } from './components/fileTree.js';
 import { downloadTextFile } from './download.js';
@@ -64,6 +64,7 @@ let liveAssistantEl = null;      // 当前流式消息的 DOM 元素（生成中
 let liveAssistantMsg = null;     // 当前流式消息数据对象
 let liveAssistantSizeEl = null;  // 生成中卡片的输出大小指示
 let liveAssistantStreamEl = null; // 生成中卡片的实时阶段文字区（需求分析/方案规划）
+let liveAssistantInfoEl = null;   // 生成中卡片的状态文案（需求分析中/方案规划中/代码生成中）
 let sessionListCollapsed = false;
 let sessionSearchKeyword = '';
 let panelTab = 'preview';        // 右栏模式：preview | code
@@ -162,6 +163,7 @@ function renderMessages() {
       process: v ? v.process : null,
       note: v ? v.note : '',
       stageText: v ? v.stageText : null,
+      phase: getState().phase,
       onPreview: (idx) => previewVersionFromCard(idx),
       onCopy: (idx) => copyCode(idx),
       onDownload: (idx) => downloadHtml(idx),
@@ -834,6 +836,7 @@ async function handleSend() {
   liveAssistantEl = els.messageList.lastElementChild;
   liveAssistantSizeEl = liveAssistantEl ? liveAssistantEl.querySelector('.msg-card-size') : null;
   liveAssistantStreamEl = liveAssistantEl ? liveAssistantEl.querySelector('.msg-card-stream') : null;
+  liveAssistantInfoEl = liveAssistantEl ? liveAssistantEl.querySelector('.msg-card-info') : null;
 
   const procTimeline = {}; // 各生成阶段开始时间（持久化到版本 process 字段）
   const stageTexts = { analyzing: '', planning: '' }; // 各阶段文字（持久化到版本 stageText 字段）
@@ -845,6 +848,9 @@ async function handleSend() {
         onStatus: (phase) => {
           if (phase && !(phase in procTimeline)) procTimeline[phase] = Date.now();
           setState({ phase });
+          if (liveAssistantInfoEl && PHASE_ACTIVE_LABEL[phase]) {
+            liveAssistantInfoEl.textContent = PHASE_ACTIVE_LABEL[phase];
+          }
           if (phase === 'generating' && liveAssistantStreamEl) {
             liveAssistantStreamEl.classList.add('hidden');
             if (liveAssistantSizeEl) liveAssistantSizeEl.classList.remove('hidden');
@@ -898,17 +904,33 @@ async function handleSend() {
   }
 }
 
-/** 生成中卡片：实时显示当前阶段文字（需求分析/方案规划） */
+/** 生成中卡片：实时显示当前阶段文字（需求分析/方案规划），各阶段分块堆叠展示 */
 function updateLiveStream(stage, text) {
   if (!liveAssistantStreamEl) return;
-  const labelEl = liveAssistantStreamEl.querySelector('.msg-card-stream-label');
-  const textEl = liveAssistantStreamEl.querySelector('.msg-card-stream-text');
-  if (!labelEl || !textEl) return;
-  labelEl.textContent = stage === 'planning' ? '方案规划' : '需求分析';
-  textEl.textContent = text;
+  let block = liveAssistantStreamEl.querySelector('.msg-card-stream-block[data-stage="' + stage + '"]');
+  if (!block) {
+    block = document.createElement('div');
+    block.className = 'msg-card-stream-block';
+    block.dataset.stage = stage;
+    const labelEl = document.createElement('div');
+    labelEl.className = 'msg-card-stream-label';
+    labelEl.textContent = stage === 'planning' ? '方案规划' : '需求分析';
+    const textEl = document.createElement('div');
+    textEl.className = 'msg-card-stream-text';
+    block.append(labelEl, textEl);
+    // 阶段按 analyzing → planning 顺序堆叠，保证上滑能看到上个阶段的文字
+    const prev = stage === 'planning' ? liveAssistantStreamEl.querySelector('.msg-card-stream-block[data-stage="analyzing"]') : null;
+    if (prev && prev.nextSibling) liveAssistantStreamEl.insertBefore(block, prev.nextSibling);
+    else liveAssistantStreamEl.appendChild(block);
+  }
+  const textEl = block.querySelector('.msg-card-stream-text');
+  if (textEl) textEl.textContent = text;
   liveAssistantStreamEl.classList.remove('hidden');
   if (liveAssistantSizeEl) liveAssistantSizeEl.classList.add('hidden');
-  els.messageList.scrollTop = els.messageList.scrollHeight;
+  // 仅当用户停留在底部附近时自动滚动；用户上滑阅读历史时不打断
+  const list = els.messageList;
+  const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+  if (nearBottom) list.scrollTop = list.scrollHeight;
 }
 
 /** 生成失败统一处理：标记消息、持久化、更新状态卡片、Toast */
