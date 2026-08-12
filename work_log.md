@@ -233,3 +233,7 @@
 - **做了什么**：`main.py` 新增 `@app.middleware("http") no_cache_static`：非 `/api/*` 的响应一律 `setdefault("Cache-Control", "no-cache")`，浏览器每次重新校验（ETag 命中返回 304，变更返回 200 新内容）；SSE 接口自身已有 no-cache 不受影响。
 - **预期行为确认**：修复后生成中卡片文案应依次为「需求分析中…/方案规划中…/正在生成代码…/渲染预览中…」，且发送需求后**第一句就应是「生成中 需求分析中…」**（新代码创建卡片时即按 analyzing 渲染，不依赖后端回包）。
 - **验证结果**：TestClient 进程内验证 `/`、`/js/app.js`、`/css/style.css` 均带 `Cache-Control: no-cache`，`/api/health` 无该头（符合预期）；`main.py` 语法 OK。生效需重启本地 uvicorn（当前 8000 服务 PID 19116 未重启，仍为旧进程）。
+## 2026-08-12 11:31 · 回填 DELIVERY_NOTES.md 在线 Demo 链接（部署完成状态）
+- **改动文件**：`DELIVERY_NOTES.md`、`work_log.md`（本轮追加记录）
+- **做了什么**：按用户提供的已部署地址 https://atoms-demo-lupx.onrender.com/ 更新交付说明：① 开头「在线 Demo」由「待部署后填写」改为 Render 公网部署链接；② 2.1 已完成列表新增「公网部署：Render 已上线」条目；③ 2.2「公网部署未完成（无在线访问链接，提交前最大待办）」条目移除；④ 2.3 对照表「Publish 公网链接」由 ❌ 待完成改为 ✅ 已部署并附链接；⑤ 3 节 P0 由「提交前必做」改为「已完成」并保留公网回归建议。
+- **验证结果**：git diff 显示 DELIVERY_NOTES.md 仅 4 行改动（+4/-4），无格式残留。

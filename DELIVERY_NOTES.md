@@ -8,7 +8,7 @@
 
 Atoms-Demo 复刻了 Atoms 最核心的体验闭环——「用对话驱动 AI 把想法变成可运行的应用」：用户描述需求，智能体规划并生成单文件 HTML，右侧以模拟浏览器窗口实时预览，支持版本回看、基于历史版本继续迭代、导出下载，全程数据不丢。
 
-- **在线 Demo**：待部署后填写（Render 公网链接）
+- **在线 Demo**：https://atoms-demo-lupx.onrender.com/ （Render 公网部署）
 - **源码仓库**：https://github.com/lupx-cn/atoms-demo-lupx （Public）
 
 ---
@@ -46,11 +46,11 @@ Atoms-Demo 复刻了 Atoms 最核心的体验闭环——「用对话驱动 AI �
 - **会话找回与管理**：入口常驻、默认展开、搜索/重命名/删除。
 - **三栏布局与右栏多功能面板**：左会话/中对话/右预览+代码，宽度可拖拽并记忆；预览模拟浏览器窗口（拖拽/缩放）；代码编辑器可编辑/保存/下载。
 - **导出**：下载当前版本 HTML 单文件（文件名=项目名-V{n}），支持「含预览数据 / 空模板」二选一。
+- **公网部署**：Render 已上线，在线 Demo：[https://atoms-demo-lupx.onrender.com/](https://atoms-demo-lupx.onrender.com/)
 - **工程与质量**：README/goals/dev_spec/work_log/两份需求文档齐全；`py_compile`、`node --check`、存储桥 16 项单测与 17 项端到端验证通过。
 
 ### 2.2 未完成 / 暂缓
 
-- **公网部署未完成**：代码已推送 GitHub（Public），`render.yaml` 已就绪，但 Render 服务尚未创建，**无在线访问链接**（提交前最大待办）。
 - FR1.7「AI 生成说明文本」（P2 暂缓，已部分被 `stageText` 覆盖）。
 - 多 Agent 分工编排、多文件工程生成、账号/多用户、后端数据库持久化（超出本次范围，见第 3 节）。
 
@@ -62,7 +62,7 @@ Atoms-Demo 复刻了 Atoms 最核心的体验闭环——「用对话驱动 AI �
 | AI 员工分工与过程透明 | 状态机过程反馈 + 阶段文字流式展示 | 🟡 简化实现（单智能体） |
 | 可视化预览生成的应用 | iframe + 模拟浏览器窗口 | ✅ 已实现 |
 | 版本管理与回溯 | V1/V2 标签栏 + 基于历史版本迭代 | ✅ 已实现 |
-| Publish 公网链接 | Render 部署 | ❌ 待完成 |
+| Publish 公网链接 | Render 部署（[https://atoms-demo-lupx.onrender.com/](https://atoms-demo-lupx.onrender.com/)） | ✅ 已部署 |
 | Share/导出文件 | 下载 HTML（烘焙/空模板） | ✅ 已实现 |
 | 数据管理与持久化 | LocalStorage + 预览存储桥 | ✅ 已实现 |
 | 集成 GitHub/Supabase/Stripe | — | ❌ 未做 |
@@ -71,7 +71,7 @@ Atoms-Demo 复刻了 Atoms 最核心的体验闭环——「用对话驱动 AI �
 
 ## 3. 后续扩展与优先级
 
-- **P0（提交前必做）**：Render 部署上线 → 公网回归测试用例 1~5 → 回填在线链接。
+- **P0（已完成）**：Render 部署上线 → 在线 Demo 链接已回填（https://atoms-demo-lupx.onrender.com/）；公网回归可再按测试用例 1~5 快速过一遍。
 - **P1（近期价值最高）**：后端会话持久化（SQLite）为多用户打底；引入多 Agent 分工（产品分析/架构规划/编码/测试，对应 Atoms 的 AI 员工）；支持多文件工程生成（HTML/CSS/JS 分离或前端框架）。
 - **P2（差异化亮点）**：版本间 diff 对比、导出 zip 工程包、沙箱安全加固（CSP + DOM 净化）、移动端适配优化、接入 GitHub 仓库联动与 Supabase 数据服务、AI 生成版本说明文本（FR1.7）。
 
